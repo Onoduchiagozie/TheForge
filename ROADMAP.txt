@@ -1,0 +1,88 @@
+THEFORGE — FULL BUILD ROADMAP
+==============================
+Generated: 2026-05-03
+Current state: Proxy layer working (controllers, FastApiClient, models all present)
+Missing: Auth, DB, UserSettings, subscription tiers, streaming polish, Blazor UI
+
+WHAT YOU ALREADY HAVE (do not rebuild)
+---------------------------------------
+✅ Program.cs               — HttpClient registered, CORS, Swagger
+✅ FastApiClient.cs         — all FastAPI calls including SSE streaming
+✅ IFastApiClient.cs        — interface defined
+✅ QueryController.cs       — all 5 query endpoints (sync + stream)
+✅ SystemController.cs      — health, info, sources, memory
+✅ Models/QueryRequest.cs   — all request and response models
+✅ appsettings.json         — FastApi:BaseUrl configured
+
+WHAT IS MISSING (build in this order)
+---------------------------------------
+STEP 1  — [10%] Fix namespace typo + add missing NuGet packages
+          Files: TheForge.csproj, SystemController.cs (namespace fix)
+          Why: SystemController uses wrong namespace; csproj missing EF Core, SQLite, Auth packages
+
+STEP 2  — [20%] SQLite database with EF Core
+          Files: Data/ForgeDbContext.cs, Data/Entities/*.cs, appsettings.json
+          Tables: Users, Subscriptions, UserSettings, ApiKeys, UsageLog
+          Why: Everything else (auth, settings, rate limiting) depends on this
+
+STEP 3  — [30%] API Key middleware (v1 auth — no login needed yet)
+          Files: Middleware/ApiKeyMiddleware.cs, Program.cs update
+          Why: Protect all endpoints before adding user-facing features
+
+STEP 4  — [40%] UserSettings — per-user config override
+          Files: Services/UserSettingsService.cs, Controllers/SettingsController.cs
+          Why: Allows users to customise top_k, mode, candidate_pool etc.
+          How: On every query, TheForge reads UserSettings and injects into FastAPI request
+
+STEP 5  — [50%] Subscription tier enforcement
+          Files: Middleware/TierEnforcementMiddleware.cs, Services/UsageService.cs
+          Tiers: Free (10/day, remembrancer only, top_k≤4), Adept, Archmagos
+          Why: Core product differentiation
+
+STEP 6  — [60%] Session management
+          Files: Services/SessionService.cs, update QueryController
+          Why: Generates UUID per user session, passes to FastAPI as session_id
+          How: UUID stored in JWT claim or cookie; injected into every FastAPI request
+
+STEP 7  — [70%] Supabase JWT auth (replaces API key for user-facing access)
+          Files: Program.cs (AddAuthentication), Middleware updates
+          Why: Real user accounts, login/logout, JWT per user
+          How: Supabase issues JWTs; TheForge validates them using Supabase public key
+
+STEP 8  — [80%] Response caching
+          Files: Services/QueryCacheService.cs, update QueryController
+          Cache key: hash(query + mode + top_k)
+          TTL: 10 minutes. Skipped for stream endpoints.
+          Why: Identical queries return instantly without hitting FastAPI
+
+STEP 9  — [90%] Blazor Server chatbot UI
+          Files: New Blazor project TheForge.Blazor added to solution
+          Components: ChatPage.razor, MessageBubble.razor, SettingsPanel.razor
+          Why: The user-facing product — streaming chat interface
+
+STEP 10 — [100%] Hosting + Cloudflare Tunnel
+          Deploy TheForge to Railway/Azure App Service
+          Expose FastAPI (Lenovo) via Cloudflare Tunnel
+          Set production appsettings with real URLs and Supabase keys
+
+ARCHITECTURE SUMMARY
+---------------------
+Browser (Blazor Server)
+    ↓ HTTP/SSE
+TheForge (.NET 8) — auth, tiers, settings, caching, session ID
+    ↓ HTTP/SSE
+OmnissiahCore (FastAPI) — FAISS, BM25, rerank, Ollama inference
+    ↓
+Ollama (local, qwen3:14b)
+
+DATABASE SPLIT
+--------------
+TheForge → SQLite (EF Core) — users, subscriptions, settings, api keys, usage
+FastAPI  → in-memory dict (current) — session conversation memory
+           (upgrade to SQLite later for persistence across restarts)
+
+TIER LIMITS
+-----------
+Free     | 10 queries/day | remembrancer only  | top_k ≤ 4  | candidate_pool ≤ 10
+Adept    | 100/day        | all modes          | top_k ≤ 8  | candidate_pool ≤ 30
+Archmagos| unlimited      | all modes          | top_k ≤ 10 | candidate_pool ≤ 50

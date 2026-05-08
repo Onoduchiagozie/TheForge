@@ -1,0 +1,6 @@
+@TheForge_HostAddress = http://localhost:5157
+
+GET {{TheForge_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

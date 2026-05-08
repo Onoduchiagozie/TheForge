@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>The Remembrancer</title>
+    <link rel="stylesheet" href="css/forge.css"/>
+</head>
+<body>
+    <Routes/>
+    <script src="_framework/blazor.server.js"></script>
+    <script>
+        // Scroll helper called from Blazor
+        window.scrollToBottom = (el) => {
+            if (el) el.scrollTop = el.scrollHeight;
+        };
+    </script>
+</body>
+</html>

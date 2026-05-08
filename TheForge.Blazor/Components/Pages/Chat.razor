@@ -1,0 +1,292 @@
+@page "/"
+@page "/chat"
+@using TheForge.Blazor.Models
+@using TheForge.Blazor.Services
+@using Markdig
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+@inject ForgeApiService Api
+@inject IJSRuntime JS
+@implements IDisposable
+
+<PageTitle>The Remembrancer — Warhammer 40K Lore Archive</PageTitle>
+
+<div class="forge-shell">
+
+    <!-- ── Header ───────────────────────────────────────────────────────── -->
+    <header class="forge-header">
+        <div class="forge-logo">
+            <span class="logo-icon">⚙</span>
+            <span class="logo-title">THE REMEMBRANCER</span>
+            <span class="logo-sub">Warhammer 40K Lore Archive · 498,850 Chunks</span>
+        </div>
+        <button class="settings-toggle" @onclick="ToggleSettings">⚙ Settings</button>
+    </header>
+
+    <!-- ── Settings panel ───────────────────────────────────────────────── -->
+    @if (_showSettings)
+    {
+        <div class="settings-panel">
+            <h3>Query Settings</h3>
+
+            <label>Mode</label>
+            <select @bind="_settings.Mode">
+                <option value="@ChatMode.Remembrancer">Remembrancer — grounded Q&amp;A</option>
+                <option value="@ChatMode.Narrator">Narrator — immersive prose (Adept+)</option>
+                <option value="@ChatMode.Explorer">Explorer — artefact analysis (Adept+)</option>
+            </select>
+
+            <label>Top K (chunks retrieved: @_settings.TopK)</label>
+            <input type="range" min="2" max="10" @bind="_settings.TopK"/>
+
+            <label>
+                <input type="checkbox" @bind="_settings.UseStream"/> Stream tokens live
+            </label>
+
+            <label>API Key</label>
+            <input type="password" placeholder="X-Api-Key" @bind="_settings.ApiKey"/>
+
+            <button @onclick="ToggleSettings">Close</button>
+        </div>
+    }
+
+    <!-- ── Message history ──────────────────────────────────────────────── -->
+    <div class="forge-messages" @ref="_scrollRef">
+        @if (_messages.Count == 0)
+        {
+            <div class="forge-empty">
+                <p class="empty-icon">📖</p>
+                <p class="empty-title">The Archives await your query, Remembrancer.</p>
+                <p class="empty-sub">Ask about any character, battle, artefact, or event from the Warhammer 40K universe.</p>
+                <div class="example-queries">
+                    @foreach (var example in _examples)
+                    {
+                        <button class="example-btn" @onclick="() => SendExample(example)">@example</button>
+                    }
+                </div>
+            </div>
+        }
+
+        @foreach (var msg in _messages)
+        {
+            <div class="msg @(msg.Role == ChatRole.User ? "msg-user" : "msg-forge") @(msg.Role == ChatRole.Error ? "msg-error" : "")">
+                <div class="msg-role">
+                    @(msg.Role == ChatRole.User ? "You" : msg.Role == ChatRole.Error ? "Error" : "The Remembrancer")
+                </div>
+                <div class="msg-body">
+                    @if (msg.Role == ChatRole.Forge || msg.Role == ChatRole.Error)
+                    {
+                        @((MarkupString)RenderMarkdown(msg.Text))
+                        @if (msg.IsStreaming)
+                        {
+                            <span class="cursor">▌</span>
+                        }
+                    }
+                    else
+                    {
+                        <span>@msg.Text</span>
+                    }
+                </div>
+                @if (msg.Sources.Count > 0)
+                {
+                    <details class="sources-block">
+                        <summary>@msg.Sources.Count source(s)</summary>
+                        @foreach (var src in msg.Sources)
+                        {
+                            <div class="source-item">
+                                <span class="src-name">@TrimSourceName(src.Source)</span>
+                                <span class="src-score">score: @src.Score.ToString("F2")</span>
+                            </div>
+                        }
+                    </details>
+                }
+                <div class="msg-time">@msg.Timestamp.ToLocalTime().ToString("HH:mm")</div>
+            </div>
+        }
+
+        @if (_isThinking)
+        {
+            <div class="msg msg-forge msg-thinking">
+                <div class="msg-role">The Remembrancer</div>
+                <div class="msg-body">
+                    <span class="thinking-dot"></span>
+                    <span class="thinking-dot"></span>
+                    <span class="thinking-dot"></span>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- ── Input bar ────────────────────────────────────────────────────── -->
+    <div class="forge-input-bar">
+        <div class="mode-badge @_settings.Mode.ToString().ToLower()">@_settings.Mode</div>
+        <textarea
+            @ref="_inputRef"
+            class="forge-input"
+            placeholder="Query the Archives..."
+            @bind="_inputText"
+            @bind:event="oninput"
+            @onkeydown="OnKeyDown"
+            rows="1"
+            disabled="@_isBusy">
+        </textarea>
+        <button class="send-btn" @onclick="Send" disabled="@(_isBusy || string.IsNullOrWhiteSpace(_inputText))">
+            @if (_isBusy) { <span>⏳</span> } else { <span>➤</span> }
+        </button>
+        @if (_isBusy)
+        {
+            <button class="cancel-btn" @onclick="Cancel">✕</button>
+        }
+    </div>
+
+</div>
+
+@code {
+    // ── State ─────────────────────────────────────────────────────────────────
+    private readonly List<ChatMessage> _messages = [];
+    private ChatSettings _settings = new()
+    {
+        Mode = ChatMode.Remembrancer,
+        TopK = 6,
+        UseStream = true,
+        ApiKey = "forge-dev-key",
+        ForgeBaseUrl = "http://localhost:5000",
+    };
+    private string _inputText = string.Empty;
+    private bool _isBusy;
+    private bool _isThinking;
+    private bool _showSettings;
+    private ElementReference _scrollRef;
+    private ElementReference _inputRef;
+    private CancellationTokenSource? _cts;
+
+    private readonly string[] _examples =
+    [
+        "Who is Horus Lupercal?",
+        "What happened at the Istvaan V Dropsite Massacre?",
+        "Describe the duel between Ferrus Manus and Fulgrim.",
+        "How was Fulgrim corrupted by Slaanesh?",
+        "What is the Webway?",
+    ];
+
+    // ── Markdown rendering ────────────────────────────────────────────────────
+    private static readonly MarkdownPipeline _pipeline =
+        new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+
+    private static string RenderMarkdown(string text) =>
+        Markdown.ToHtml(text ?? string.Empty, _pipeline);
+
+    private static string TrimSourceName(string src) =>
+        src.Length > 60 ? src[..57] + "..." : src;
+
+    // ── Interaction ───────────────────────────────────────────────────────────
+    private void ToggleSettings() => _showSettings = !_showSettings;
+
+    private async Task SendExample(string text)
+    {
+        _inputText = text;
+        await Send();
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey && !string.IsNullOrWhiteSpace(_inputText))
+        {
+            await Send();
+        }
+    }
+
+    private void Cancel()
+    {
+        _cts?.Cancel();
+    }
+
+    private async Task Send()
+    {
+        var query = _inputText.Trim();
+        if (string.IsNullOrWhiteSpace(query) || _isBusy) return;
+
+        _inputText = string.Empty;
+        _isBusy = true;
+        _cts = new CancellationTokenSource();
+
+        // Add user message
+        _messages.Add(new ChatMessage { Role = ChatRole.User, Text = query });
+
+        // Placeholder forge message
+        var forgeMsg = new ChatMessage
+        {
+            Role = ChatRole.Forge,
+            Text = string.Empty,
+            IsStreaming = true,
+        };
+
+        try
+        {
+            if (_settings.UseStream)
+            {
+                _isThinking = true;
+                StateHasChanged();
+                await ScrollToBottom();
+
+                await foreach (var token in Api.QueryStreamAsync(query, _settings, _cts.Token))
+                {
+                    if (_isThinking)
+                    {
+                        _isThinking = false;
+                        _messages.Add(forgeMsg);
+                    }
+                    forgeMsg.Text += token;
+                    StateHasChanged();
+                    await ScrollToBottom();
+                }
+            }
+            else
+            {
+                _isThinking = true;
+                StateHasChanged();
+                var (response, sources) = await Api.QueryAsync(query, _settings, _cts.Token);
+                _isThinking = false;
+                forgeMsg.Text = response;
+                forgeMsg.Sources = sources;
+                _messages.Add(forgeMsg);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            _isThinking = false;
+            if (!_messages.Contains(forgeMsg))
+                _messages.Add(forgeMsg);
+            forgeMsg.Text += "\n\n*Query cancelled.*";
+        }
+        catch (Exception ex)
+        {
+            _isThinking = false;
+            _messages.Add(new ChatMessage
+            {
+                Role = ChatRole.Error,
+                Text = $"Error: {ex.Message}\n\nMake sure TheForge API and OmnissiahCore are running.",
+            });
+        }
+        finally
+        {
+            forgeMsg.IsStreaming = false;
+            _isBusy = false;
+            _cts?.Dispose();
+            _cts = null;
+            StateHasChanged();
+            await ScrollToBottom();
+        }
+    }
+
+    private async Task ScrollToBottom()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("scrollToBottom", _scrollRef);
+        }
+        catch { /* ignore JS interop errors during prerender */ }
+    }
+
+    public void Dispose() => _cts?.Cancel();
+}

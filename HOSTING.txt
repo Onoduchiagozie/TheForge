@@ -1,0 +1,106 @@
+THEFORGE — STEP 10: HOSTING GUIDE
+===================================
+
+ARCHITECTURE RECAP
+------------------
+Browser (Blazor Server on port 5001)
+    ↓
+TheForge API (ASP.NET Core on port 5000)
+    ↓
+OmnissiahCore FastAPI (Python on port 8000) — on Lenovo
+    ↓
+Ollama qwen3:14b — on Lenovo
+
+
+RUNNING LOCALLY (development)
+------------------------------
+Three PowerShell windows:
+
+Window 1 — OmnissiahCore (Lenovo or Dell stub):
+    cd C:\...\OmnissiahCore
+    python main.py api
+
+Window 2 — TheForge API:
+    cd C:\...\TheForge\TheForge
+    dotnet run
+    → runs on http://localhost:5000
+    → Swagger at http://localhost:5000/swagger
+
+Window 3 — Blazor UI:
+    cd C:\...\TheForge\TheForge.Blazor
+    dotnet run
+    → runs on http://localhost:5001
+    → open browser to http://localhost:5001
+
+
+FIRST RUN CHECKLIST
+--------------------
+1. FastAPI running and /health returns 200
+2. dotnet ef migrations add InitialCreate  (TheForge folder)
+3. dotnet ef database update
+4. forge.db created in TheForge folder
+5. dotnet run on TheForge — Swagger opens
+6. POST /api/query with X-Api-Key: forge-dev-key — returns response
+7. dotnet run on TheForge.Blazor — chat UI opens
+8. Type a query — response streams back
+
+
+CLOUDFLARE TUNNEL (expose Lenovo FastAPI to internet)
+------------------------------------------------------
+On Lenovo:
+    winget install Cloudflare.cloudflared
+    cloudflared tunnel login
+    cloudflared tunnel create omnissiah
+    cloudflared tunnel route dns omnissiah api.yourdomain.com
+    cloudflared tunnel run omnissiah
+
+Then in TheForge appsettings.Production.json:
+    "FastApi": {
+        "BaseUrl": "https://api.yourdomain.com"
+    }
+
+
+HOSTING THEFORGE API FREE
+--------------------------
+Option A — Railway.app (recommended):
+    1. Push TheForge to GitHub
+    2. railway.app → New Project → Deploy from GitHub
+    3. Select TheForge folder
+    4. Set env vars: FastApi__BaseUrl, Supabase__JwtSecret
+    5. Done — Railway gives you a public URL
+
+Option B — Azure App Service (free F1 tier):
+    1. Install Azure CLI: winget install Microsoft.AzureCLI
+    2. az login
+    3. az webapp up --name theforge-app --runtime "DOTNET|8.0"
+    4. Set app settings in Azure Portal
+
+
+HOSTING BLAZOR UI FREE
+-----------------------
+Option A — Same Railway project (add TheForge.Blazor as second service)
+Option B — Vercel (static + SSR): not ideal for Blazor Server
+Option C — Run Blazor inside TheForge as a hosted service (simplest)
+
+Simplest production setup: combine both into one deploy.
+Add to TheForge.csproj:
+    <ProjectReference Include="..\TheForge.Blazor\TheForge.Blazor.csproj"/>
+
+Then TheForge serves both the API and the Blazor UI from one process on one port.
+
+
+SUPABASE AUTH SETUP (Step 7 activation)
+-----------------------------------------
+1. supabase.com → New Project → free tier
+2. Settings → API → copy JWT Secret
+3. Paste into TheForge appsettings.json → Supabase:JwtSecret
+4. In Blazor, use Supabase JS client to login and get JWT
+5. Pass JWT as Authorization: Bearer <token> header to TheForge
+6. ForgeAuthMiddleware validates it and auto-provisions the user
+
+
+PRODUCTION ENV VARS (never put secrets in appsettings.json)
+-------------------------------------------------------------
+FASTAPI__BASEURL=https://api.yourdomain.com
+SUPABASE__JWTSECRET=your-jwt-secret
+CONNECTIONSTRINGS__FORGEDB=Data Source=/data/forge.db

@@ -1,0 +1,10 @@
+@page "/query"
+@layout ForgeLayout
+@inject NavigationManager Nav
+
+@code {
+    protected override void OnInitialized()
+    {
+        Nav.NavigateTo("/workspace", replace: true);
+    }
+}

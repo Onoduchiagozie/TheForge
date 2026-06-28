@@ -7,7 +7,7 @@ namespace TheForge.Services;
 
 /// <summary>
 /// Caches synchronous query responses in memory.
-/// Cache key = SHA256(query + mode + top_k) — same query+settings returns instantly.
+/// Cache key = SHA256(query + book filter) — Gold-only mode/top_k controls are not part of pre-Gold requests.
 /// TTL = 10 minutes.
 /// Stream endpoints are intentionally excluded — you cannot cache a live SSE stream.
 ///
@@ -51,7 +51,7 @@ public class QueryCacheService(IMemoryCache cache, ILogger<QueryCacheService> lo
 
     private static string BuildKey(QueryRequest req)
     {
-        var raw = $"{req.Query.Trim().ToLowerInvariant()}|{req.Mode ?? "remembrancer"}|{req.TopK ?? 6}";
+        var raw = $"{req.Query.Trim().ToLowerInvariant()}|{req.BookFilter?.Trim().ToLowerInvariant()}";
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(raw));
         return $"qcache:{Convert.ToHexString(hash).ToLowerInvariant()}";
     }

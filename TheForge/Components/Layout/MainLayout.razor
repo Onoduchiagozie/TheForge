@@ -1,0 +1,15 @@
+@inherits LayoutComponentBase
+
+<div class="shell">
+    <aside class="sidebar">
+        <div class="brand">TheForge</div>
+        <nav class="nav">
+            <NavLink href="/" Match="NavLinkMatch.All">Stream Test</NavLink>
+            <NavLink href="/query">Query</NavLink>
+        </nav>
+    </aside>
+
+    <main class="content">
+        @Body
+    </main>
+</div>

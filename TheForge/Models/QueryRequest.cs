@@ -5,13 +5,15 @@ namespace TheForge.Models;
 public class QueryRequest
 {
     public string Query { get; set; } = string.Empty;
-    public string? SessionId { get; set; }
-    public string? Mode { get; set; }
     public string? BookFilter { get; set; }
-    public string? SourceFilter { get; set; }
-    public int? TopK { get; set; }
-    public int? CandidatePool { get; set; }
-    public int? StitchingWindow { get; set; }
+    public List<string>? SourceFilter { get; set; }
+
+    // GOLD: Context/session, mode payloads, and retrieval override controls are intentionally disabled.
+    // public string? SessionId { get; set; }
+    // public string? Mode { get; set; }
+    // public int? TopK { get; set; }
+    // public int? CandidatePool { get; set; }
+    // public int? StitchingWindow { get; set; }
 }
 
 // ── Response building-blocks ──────────────────────────────────────────────────

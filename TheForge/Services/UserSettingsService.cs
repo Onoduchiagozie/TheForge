@@ -6,8 +6,8 @@ using TheForge.Models;
 namespace TheForge.Services;
 
 /// <summary>
-/// Reads a user's saved settings and merges them with system defaults.
-/// Also enforces tier caps so free users cannot exceed their limits.
+/// GOLD scaffold for saved settings and future tier caps.
+/// Pre-Gold query requests intentionally do not apply top_k, pool, window, or mode overrides.
 /// </summary>
 public class UserSettingsService(ForgeDbContext db, IConfiguration config)
 {
@@ -25,31 +25,32 @@ public class UserSettingsService(ForgeDbContext db, IConfiguration config)
     };
 
     /// <summary>
-    /// Merges user settings + tier caps into the outgoing QueryRequest.
-    /// Call this in QueryController before forwarding to FastAPI.
+    /// Pre-Gold no-op. Gold will merge user settings + tier caps into outgoing QueryRequest.
     /// </summary>
     public void ApplyToRequest(QueryRequest req, User user)
     {
-        var settings = user.Settings;
-        var tier = user.Tier.ToLowerInvariant();
-        var caps = _tierCaps.GetValueOrDefault(tier, _tierCaps["free"]);
+        _ = req;
+        _ = user;
 
-        // Apply user preference or fall back to system default, then cap at tier limit
-        req.TopK = Math.Min(
-            settings?.TopK ?? req.TopK ?? DefaultTopK,
-            caps.MaxTopK);
-
-        req.CandidatePool = Math.Min(
-            settings?.CandidatePool ?? req.CandidatePool ?? DefaultPool,
-            caps.MaxPool);
-
-        req.StitchingWindow ??= settings?.StitchingWindow ?? DefaultWindow;
-
-        // Mode enforcement — free tier can only use remembrancer
-        var requestedMode = req.Mode ?? settings?.PreferredMode ?? "remembrancer";
-        req.Mode = caps.AllowedModes.Contains(requestedMode)
-            ? requestedMode
-            : "remembrancer";
+        // GOLD: Retrieval override and mode enforcement are intentionally disabled.
+        // var settings = user.Settings;
+        // var tier = user.Tier.ToLowerInvariant();
+        // var caps = _tierCaps.GetValueOrDefault(tier, _tierCaps["free"]);
+        //
+        // req.TopK = Math.Min(
+        //     settings?.TopK ?? req.TopK ?? DefaultTopK,
+        //     caps.MaxTopK);
+        //
+        // req.CandidatePool = Math.Min(
+        //     settings?.CandidatePool ?? req.CandidatePool ?? DefaultPool,
+        //     caps.MaxPool);
+        //
+        // req.StitchingWindow ??= settings?.StitchingWindow ?? DefaultWindow;
+        //
+        // var requestedMode = req.Mode ?? settings?.PreferredMode ?? "remembrancer";
+        // req.Mode = caps.AllowedModes.Contains(requestedMode)
+        //     ? requestedMode
+        //     : "remembrancer";
     }
 
     /// <summary>
@@ -57,9 +58,16 @@ public class UserSettingsService(ForgeDbContext db, IConfiguration config)
     /// </summary>
     public bool IsModeAllowed(User user, string mode)
     {
+        // GOLD: Mode tier gates are intentionally disabled in the pre-Gold build.
+        _ = user;
+        _ = mode;
+        return true;
+
+        /*
         var tier = user.Tier.ToLowerInvariant();
         var caps = _tierCaps.GetValueOrDefault(tier, _tierCaps["free"]);
         return caps.AllowedModes.Contains(mode.ToLowerInvariant());
+        */
     }
 
     /// <summary>

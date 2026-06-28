@@ -1,3 +1,7 @@
+/*
+GOLD: Settings, tier metadata, quota metadata, and retrieval overrides are intentionally disabled
+in the pre-Gold build. Re-enable this controller when Gold auth/tier support is implemented.
+
 using Microsoft.AspNetCore.Mvc;
 using TheForge.Data.Entities;
 using TheForge.Services;
@@ -78,3 +82,4 @@ public class SettingsController(
         return Ok(tierLimits);
     }
 }
+*/

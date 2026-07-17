@@ -1,0 +1,23 @@
+@* SceneCard.razor
+   A single ticker card. Rendered twice per row (see SceneRow) to create a seamless CSS loop —
+   the second copy is aria-hidden and untabbable so screen readers and keyboard users never
+   see/reach the duplicate.
+*@
+
+<button type="button"
+        class="scene-card scene-card--accent-@Card.AccentIndex @(Card.IsFeatured ? "scene-card--featured" : "")"
+        aria-hidden="@(AriaHidden ? "true" : null)"
+        tabindex="@(AriaHidden ? -1 : 0)"
+        @onclick="@(() => OnSelected.InvokeAsync())">
+    <span class="scene-card__book">@Card.BookTitle</span>
+    <span class="scene-card__title">@Card.Title</span>
+    <span class="scene-card__teaser">@Card.Teaser</span>
+</button>
+
+@code {
+    [Parameter, EditorRequired] public SceneCardSummary Card { get; set; } = null!;
+    [Parameter] public EventCallback OnSelected { get; set; }
+
+    /// <summary>True for the duplicate copy used to loop the row seamlessly — hidden from AT and tab order.</summary>
+    [Parameter] public bool AriaHidden { get; set; } = false;
+}

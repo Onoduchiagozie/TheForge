@@ -1,0 +1,31 @@
+@* SceneRow.razor
+   One continuously-scrolling ticker row. The animation is pure CSS (transform + keyframes),
+   not JS/SignalR-driven — per the master prompt's "avoid unnecessary SignalR updates" and
+   "maintain 60fps" requirements, a server round-trip has no business being in a marquee loop.
+
+   Loop technique: render the card sequence twice, animate translateX from 0 to -50% (exactly
+   one copy's width), then jump back to 0 — visually seamless. The second copy is aria-hidden.
+*@
+
+<section class="scene-row scene-row--@DirectionClass" aria-label="@Row.DisplayLabel">
+    <h2 class="scene-row__label">@Row.DisplayLabel</h2>
+    <div class="scene-row__track-viewport">
+        <div class="scene-row__track">
+            @foreach (var card in Row.Cards)
+            {
+                <SceneCard Card="card" OnSelected="@(() => OnCardSelected.InvokeAsync(card.Id))" />
+            }
+            @foreach (var card in Row.Cards)
+            {
+                <SceneCard Card="card" OnSelected="@(() => OnCardSelected.InvokeAsync(card.Id))" AriaHidden="true" />
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public SceneRowViewModel Row { get; set; } = null!;
+    [Parameter] public EventCallback<int> OnCardSelected { get; set; }
+
+    private string DirectionClass => Row.Direction == ScrollDirection.Left ? "left" : "right";
+}

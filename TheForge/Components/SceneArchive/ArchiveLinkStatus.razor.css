@@ -1,0 +1,115 @@
+.archive-link-status {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--bg-elevated);
+    border-radius: 4px;
+    cursor: default;
+    font-family: var(--font-mono);
+    /* Muted, spec-compliant status colors — avoids bright red/white per the master prompt.
+       Phase 7 may fold these into the shared palette; overriding them here is enough either way. */
+    --archive-status-online: #5a7a4a;
+    --archive-status-offline: #8a4a2a;
+}
+
+.archive-link-status__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.archive-link-status__dot--online {
+    background: var(--archive-status-online);
+    box-shadow: 0 0 6px var(--archive-status-online);
+    animation: archive-link-status-pulse 3s ease-in-out infinite;
+}
+
+.archive-link-status__dot--offline {
+    background: var(--archive-status-offline);
+    box-shadow: 0 0 6px var(--archive-status-offline);
+    animation: archive-link-status-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes archive-link-status-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .archive-link-status__dot--online,
+    .archive-link-status__dot--offline {
+        animation: none;
+    }
+}
+
+.archive-link-status__label {
+    font-size: 0.7rem;
+    line-height: 1.2;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-primary);
+}
+
+.archive-link-status__tooltip {
+    position: absolute;
+    top: calc(100% + var(--space-1));
+    right: 0;
+    width: 240px;
+    padding: var(--space-3);
+    background: var(--bg-panel);
+    border: 1px solid var(--bg-elevated);
+    border-radius: 4px;
+    z-index: 10;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 120ms ease;
+}
+
+/* Accessible hover/focus tooltip: :focus-within covers keyboard users tabbing into the
+   Request Access button itself, not just mouse hover on the wrapper. */
+.archive-link-status:hover .archive-link-status__tooltip,
+.archive-link-status:focus-within .archive-link-status__tooltip {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.archive-link-status__explanation {
+    margin: 0 0 var(--space-2);
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.archive-link-status__confirmation {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--archive-status-online);
+}
+
+.archive-link-status__request-btn {
+    width: 100%;
+    padding: var(--space-2);
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--text-primary);
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+}
+
+.archive-link-status__request-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.archive-link-status__request-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}

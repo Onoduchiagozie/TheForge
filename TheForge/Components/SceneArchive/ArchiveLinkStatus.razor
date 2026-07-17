@@ -1,0 +1,86 @@
+@* ArchiveLinkStatus.razor
+   Per the master prompt: replace the generic health indicator with archive-flavored status
+   text, a hover/focus tooltip explaining it, and a Request Access action. Reuses the existing
+   IForgeApiService.GetHealthAsync() — no new endpoint, per "FastAPI remains responsible only
+   for health/model status and LLM queries."
+*@
+@inject IForgeApiService ForgeApi
+@inject IArchiveAccessRequestService AccessRequestService
+@inject ILogger<ArchiveLinkStatus> Logger
+
+<div class="archive-link-status" tabindex="0">
+    <span class="archive-link-status__dot @(IsOnline ? "archive-link-status__dot--online" : "archive-link-status__dot--offline")"
+          aria-hidden="true"></span>
+    <span class="archive-link-status__label">
+        @if (IsOnline)
+        {
+            <text>ARCHIVE LINK<br />ONLINE</text>
+        }
+        else
+        {
+            <text>MACHINE SPIRIT<br />OFFLINE</text>
+        }
+    </span>
+
+    <div class="archive-link-status__tooltip" role="tooltip">
+        <p class="archive-link-status__explanation">
+            @(IsOnline
+                ? "The retrieval engine is reachable and responding to queries."
+                : "The retrieval engine is not responding. Indexed chronicles remain browsable; live queries may fail.")
+        </p>
+
+        @if (_requestSent)
+        {
+            <p class="archive-link-status__confirmation">Request logged. A remembrancer will follow up.</p>
+        }
+        else
+        {
+            <button type="button"
+                    class="archive-link-status__request-btn"
+                    disabled="@_requesting"
+                    @onclick="RequestAccess">
+                @(_requesting ? "Submitting…" : "Request Access")
+            </button>
+        }
+    </div>
+</div>
+
+@code {
+    private HealthPayload? _health;
+    private bool _requesting;
+    private bool _requestSent;
+
+    private bool IsOnline =>
+        _health is not null && !string.Equals(_health.Status, "error", StringComparison.OrdinalIgnoreCase);
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _health = await ForgeApi.GetHealthAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Archive link status check failed");
+            _health = null;
+        }
+    }
+
+    private async Task RequestAccess()
+    {
+        _requesting = true;
+        try
+        {
+            await AccessRequestService.RequestAccessAsync();
+            _requestSent = true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to submit archive access request");
+        }
+        finally
+        {
+            _requesting = false;
+        }
+    }
+}

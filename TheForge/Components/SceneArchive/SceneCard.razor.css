@@ -1,0 +1,96 @@
+/* SceneCard.razor.css
+   Palette now resolves to the real gunmetal/bronze/brass/smoke/ember tones defined in
+   wwwroot/css/scene-archive-theme.css (linked globally in App.razor) instead of falling back
+   to the single app-wide --accent color.
+*/
+
+.scene-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    width: 240px;
+    min-width: 240px;
+    padding: var(--space-3);
+    text-align: left;
+    background: color-mix(in srgb, var(--bg-panel) 88%, var(--card-accent, var(--accent)) 12%);
+    border: 1px solid var(--card-accent, var(--accent));
+    border-radius: 4px;
+    color: var(--text-primary);
+    cursor: pointer;
+    font-family: var(--font-body);
+    flex-shrink: 0;
+    transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.scene-card:hover,
+.scene-card:focus-visible {
+    transform: translateY(-3px);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--card-accent, var(--accent)) 30%, transparent);
+}
+
+.scene-card--accent-0 { --card-accent: var(--scene-accent-0, var(--accent)); }
+.scene-card--accent-1 { --card-accent: var(--scene-accent-1, var(--accent)); }
+.scene-card--accent-2 { --card-accent: var(--scene-accent-2, var(--accent)); }
+.scene-card--accent-3 { --card-accent: var(--scene-accent-3, var(--accent)); }
+.scene-card--accent-4 { --card-accent: var(--scene-accent-4, var(--accent)); }
+.scene-card--accent-5 { --card-accent: var(--scene-accent-5, var(--accent)); }
+.scene-card--accent-6 { --card-accent: var(--scene-accent-6, var(--accent)); }
+.scene-card--accent-7 { --card-accent: var(--scene-accent-7, var(--accent)); }
+
+/* High-priority Horus Heresy cards read as larger, brighter, and animated, per the master prompt. */
+.scene-card--featured {
+    width: 300px;
+    min-width: 300px;
+    font-weight: 600;
+    border-width: 2px;
+    animation: scene-card-featured-pulse 4s ease-in-out infinite;
+}
+
+.scene-card--featured .scene-card__title {
+    color: var(--text-primary);
+    text-shadow: 0 0 8px color-mix(in srgb, var(--card-accent, var(--accent)) 45%, transparent);
+}
+
+@keyframes scene-card-featured-pulse {
+    0%, 100% { box-shadow: 0 0 6px color-mix(in srgb, var(--card-accent, var(--accent)) 25%, transparent); }
+    50% { box-shadow: 0 0 16px color-mix(in srgb, var(--card-accent, var(--accent)) 45%, transparent); }
+}
+
+.scene-card__book {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+
+.scene-card__title {
+    font-size: 1rem;
+    line-height: 1.25;
+}
+
+.scene-card__teaser {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+
+.scene-card:focus-visible {
+    outline: 2px solid var(--card-accent, var(--accent));
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .scene-card {
+        transition: none;
+    }
+
+    .scene-card--featured {
+        animation: none;
+        box-shadow: 0 0 10px color-mix(in srgb, var(--card-accent, var(--accent)) 30%, transparent);
+    }
+}

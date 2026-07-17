@@ -1,0 +1,122 @@
+.scene-archive {
+    /* BUG FIX: .forge-layout and <body> both set overflow: hidden with no fixed height of
+       their own, which silently clips any page taller than one viewport. The archive has
+       4+ scrolling rows plus a header — it needs to own its own scroll region explicitly. */
+    height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+    padding: var(--space-5);
+
+    background:
+        radial-gradient(circle at 15% 0%, var(--scene-smoke-1), transparent 40rem),
+        radial-gradient(circle at 85% 40%, var(--scene-smoke-2), transparent 45rem),
+        var(--bg-primary);
+}
+
+/* Scan-line texture — a flat, static overlay (not animated) so it reads as archive/terminal
+   character without adding motion. pointer-events: none keeps it from blocking clicks. */
+.scene-archive::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0.012) 0px,
+        rgba(255, 255, 255, 0.012) 1px,
+        transparent 1px,
+        transparent 3px
+    );
+}
+
+.scene-archive > * {
+    position: relative;
+    z-index: 1;
+}
+
+.scene-archive__header-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: var(--space-2);
+}
+
+.scene-archive__workspace-link {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 120ms ease;
+}
+
+.scene-archive__workspace-link:hover,
+.scene-archive__workspace-link:focus-visible {
+    color: var(--accent);
+}
+.scene-archive__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--space-4);
+    margin-bottom: var(--space-3);
+}
+
+.scene-archive__title {
+    font-family: var(--font-mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-primary);
+    text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 35%, transparent);
+    margin: 0;
+}
+
+.scene-archive__subtitle {
+    color: var(--text-muted);
+    margin: var(--space-1) 0 0;
+}
+
+.scene-archive__error,
+.scene-archive__empty {
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    padding: var(--space-4);
+    border: 1px solid var(--bg-elevated);
+    border-radius: 4px;
+}
+
+.scene-archive__loading {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.scene-archive__row-skeleton {
+    height: 180px;
+    border-radius: 6px;
+    background: linear-gradient(
+        100deg,
+        var(--bg-panel) 30%,
+        var(--bg-elevated) 50%,
+        var(--bg-panel) 70%
+    );
+    background-size: 200% 100%;
+    animation: scene-archive-shimmer 2.2s ease-in-out infinite;
+}
+
+@keyframes scene-archive-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .scene-archive__row-skeleton {
+        animation: none;
+    }
+}

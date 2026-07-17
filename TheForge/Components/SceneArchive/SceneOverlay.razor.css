@@ -1,0 +1,163 @@
+.scene-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-5);
+}
+
+.scene-overlay__backdrop {
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(circle at 30% 20%, var(--scene-smoke-1), transparent 35rem),
+        radial-gradient(circle at 70% 80%, var(--scene-smoke-2), transparent 35rem),
+        rgba(0, 0, 0, 0.75);
+    background-size: 200% 200%, 200% 200%, 100% 100%;
+    animation: scene-overlay-smoke-drift 40s ease-in-out infinite;
+}
+
+@keyframes scene-overlay-smoke-drift {
+    0%, 100% { background-position: 0% 0%, 100% 100%, 0 0; }
+    50% { background-position: 20% 15%, 80% 85%, 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .scene-overlay__backdrop {
+        animation: none;
+    }
+}
+
+.scene-overlay__panel {
+    position: relative;
+    z-index: 1;
+    width: min(760px, 100%);
+    max-height: 90vh;
+    overflow-y: auto;
+    background: var(--bg-panel);
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    padding: var(--space-5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    box-shadow: 0 0 40px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.scene-overlay__close {
+    position: absolute;
+    top: var(--space-3);
+    right: var(--space-3);
+    background: transparent;
+    border: 1px solid var(--text-muted);
+    color: var(--text-primary);
+    border-radius: 4px;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+}
+
+.scene-overlay__close:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.scene-overlay__status {
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    padding: var(--space-4) 0;
+    text-align: center;
+}
+
+.scene-overlay__status--error {
+    color: var(--danger);
+}
+
+.scene-overlay__artwork {
+    width: 100%;
+    height: 220px;
+    border-radius: 4px;
+    background:
+        radial-gradient(circle at 30% 30%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 60%),
+        repeating-linear-gradient(135deg, var(--bg-elevated) 0px, var(--bg-elevated) 2px, transparent 2px, transparent 6px),
+        var(--bg-elevated);
+    /* Real per-scene artwork is a future enhancement; this placeholder texture reads as
+       "archive material" rather than an empty gray box in the meantime. */
+}
+
+.scene-overlay__seal {
+    display: flex;
+    justify-content: center;
+    margin-top: calc(-1 * var(--space-5) - 36px);
+}
+
+.scene-overlay__header {
+    text-align: center;
+}
+
+.scene-overlay__book {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.scene-overlay__title {
+    margin: var(--space-1) 0;
+    color: var(--text-primary);
+}
+
+.scene-overlay__teaser {
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.scene-overlay__metadata {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: var(--space-2);
+    margin: 0;
+    padding: var(--space-3);
+    background: var(--bg-elevated);
+    border-radius: 4px;
+}
+
+.scene-overlay__metadata dt {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.scene-overlay__metadata dd {
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.scene-overlay__chronicle {
+    font-family: var(--font-body);
+    line-height: 1.6;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    min-height: 3em;
+}
+
+.scene-overlay__chronicle::after {
+    content: "_";
+    color: var(--accent);
+    animation: scene-overlay-cursor-blink 1s steps(1) infinite;
+}
+
+@keyframes scene-overlay-cursor-blink {
+    50% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .scene-overlay__chronicle::after {
+        animation: none;
+    }
+}

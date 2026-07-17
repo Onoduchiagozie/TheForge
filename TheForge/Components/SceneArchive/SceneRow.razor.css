@@ -1,0 +1,70 @@
+.scene-row {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.scene-row__label {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 0 0 var(--space-1) var(--space-2);
+}
+
+.scene-row__track-viewport {
+    overflow: hidden;
+    width: 100%;
+    -webkit-mask-image: linear-gradient(
+        to right,
+        transparent 0,
+        black var(--space-4),
+        black calc(100% - var(--space-4)),
+        transparent 100%
+    );
+    mask-image: linear-gradient(
+        to right,
+        transparent 0,
+        black var(--space-4),
+        black calc(100% - var(--space-4)),
+        transparent 100%
+    );
+}
+
+.scene-row__track {
+    display: flex;
+    gap: var(--space-3);
+    width: max-content;
+    animation: scene-row-scroll-left 90s linear infinite;
+}
+
+.scene-row--right .scene-row__track {
+    animation-name: scene-row-scroll-right;
+}
+
+/* Each row pauses independently on hover — scoped to this row's own viewport only. */
+.scene-row__track-viewport:hover .scene-row__track,
+.scene-row__track-viewport:focus-within .scene-row__track {
+    animation-play-state: paused;
+}
+
+@keyframes scene-row-scroll-left {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+}
+
+@keyframes scene-row-scroll-right {
+    from { transform: translateX(-50%); }
+    to { transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .scene-row__track {
+        animation: none;
+    }
+
+    .scene-row__track-viewport {
+        overflow-x: auto;
+    }
+}

@@ -1,0 +1,24 @@
+/* scene-archive-theme.css
+   Global (not component-scoped) on purpose: Blazor CSS isolation scopes selectors per
+   component, but custom property *values* still cascade normally through the DOM regardless
+   of which stylesheet declared them. Declaring the accent palette once at :root means every
+   isolated .razor.css file (SceneCard, SceneOverlay, etc.) can just read var(--scene-accent-N)
+   without each component redefining its own copy.
+
+   Palette: gunmetal, bronze, brass, ash, ember, verdigris, iron-plum, stone — deliberately
+   desaturated, no bright white/red, per the master prompt's visual language section.
+*/
+
+:root {
+    --scene-accent-0: #5c6672; /* gunmetal   */
+    --scene-accent-1: #8a6d3f; /* bronze     */
+    --scene-accent-2: #b08d57; /* brass      */
+    --scene-accent-3: #6b6558; /* ash / smoke*/
+    --scene-accent-4: #9a5a3a; /* ember/rust */
+    --scene-accent-5: #4f5d52; /* verdigris  */
+    --scene-accent-6: #6e5a6e; /* iron-plum  */
+    --scene-accent-7: #7a7469; /* stone      */
+
+    --scene-smoke-1: rgba(90, 96, 104, 0.10);
+    --scene-smoke-2: rgba(60, 50, 40, 0.08);
+}

@@ -1,0 +1,139 @@
+@* SceneOverlay.razor
+   Presentational only — SceneArchivePage owns fetching Detail/IsLoading/ErrorMessage. Keeps
+   this component reusable and keeps "which scene is open" as a single source of truth on the
+   page rather than duplicated state.
+*@
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+@if (IsOpen)
+{
+    <div class="scene-overlay" role="dialog" aria-modal="true" aria-label="@(Detail?.Title ?? "Scene detail")" @onkeydown="HandleKeyDown">
+        <div class="scene-overlay__backdrop" @onclick="Close"></div>
+
+        <div class="scene-overlay__panel">
+            <button type="button" class="scene-overlay__close" @onclick="Close" @ref="_closeButtonRef" aria-label="Close">
+                ✕
+            </button>
+
+            @if (IsLoading)
+            {
+                <div class="scene-overlay__status" aria-live="polite">Decrypting archive record&hellip;</div>
+            }
+            else if (ErrorMessage is not null)
+            {
+                <div class="scene-overlay__status scene-overlay__status--error" role="alert">@ErrorMessage</div>
+            }
+            else if (Detail is not null)
+            {
+                <div class="scene-overlay__artwork" aria-hidden="true"></div>
+
+                <div class="scene-overlay__seal">
+                    <ArchiveSeal Size="72" />
+                </div>
+
+                <header class="scene-overlay__header">
+                    <p class="scene-overlay__book">@Detail.BookTitle</p>
+                    <h2 class="scene-overlay__title">@Detail.Title</h2>
+                    <p class="scene-overlay__teaser">@Detail.Teaser</p>
+                </header>
+
+                <dl class="scene-overlay__metadata">
+                    <div><dt>Category</dt><dd>@Detail.SceneType</dd></div>
+                    <div><dt>Score</dt><dd>@Detail.Score.ToString("0.00")</dd></div>
+                    <div><dt>Rank</dt><dd>@Detail.Rank</dd></div>
+                    <div><dt>Woven</dt><dd>@(Detail.WovenAt ?? "unknown")</dd></div>
+                </dl>
+
+                <div class="scene-overlay__chronicle" id="scene-overlay-chronicle"></div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public SceneDetailViewModel? Detail { get; set; }
+    [Parameter] public bool IsLoading { get; set; }
+    [Parameter] public string? ErrorMessage { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private IJSObjectReference? _module;
+    private int? _lastAnimatedSceneId;
+    private ElementReference _closeButtonRef;
+    private bool _pendingFocus;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _module = await JS.InvokeAsync<IJSObjectReference>(
+                "import", "./Components/SceneArchive/SceneOverlay.razor.js");
+        }
+
+        if (_module is null)
+            return;
+
+        if (IsOpen && Detail is not null && Detail.Id != _lastAnimatedSceneId)
+        {
+            _lastAnimatedSceneId = Detail.Id;
+            // charsPerTick/tickMs tuned for a readable-but-not-glacial decrypt effect on
+            // typical chronicle lengths; adjust freely, it's just two numbers.
+            await _module.InvokeVoidAsync("startTypewriter", "scene-overlay-chronicle", Detail.Chronicle, 3, 18);
+        }
+
+        if (_pendingFocus)
+        {
+            _pendingFocus = false;
+            await _closeButtonRef.FocusAsync();
+        }
+
+        if (!IsOpen)
+        {
+            _lastAnimatedSceneId = null;
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (IsOpen)
+        {
+            _pendingFocus = true;
+        }
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await Close();
+        }
+    }
+
+    private async Task Close()
+    {
+        if (_module is not null)
+        {
+            await _module.InvokeVoidAsync("stopTypewriter");
+        }
+
+        await OnClose.InvokeAsync();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module is not null)
+        {
+            try
+            {
+                await _module.InvokeVoidAsync("stopTypewriter");
+                await _module.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+                // Circuit already gone (e.g. tab closed) — nothing to clean up client-side.
+            }
+        }
+    }
+}

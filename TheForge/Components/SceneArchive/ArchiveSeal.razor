@@ -1,0 +1,33 @@
+@* ArchiveSeal.razor
+   Per the master prompt: "reusable ArchiveSeal component supporting embedded Base64 image and
+   future replacement without redesign." Consumers never change — drop a real seal image in via
+   Base64ImageData whenever one exists, and every usage site picks it up automatically. Until
+   then it falls back to the existing hand-built AquilaIcon vector mark, so nothing looks broken
+   or placeholder-y in the meantime.
+*@
+
+<div class="archive-seal" style="width:@(Size)px;height:@(Size)px;">
+    @if (!string.IsNullOrWhiteSpace(Base64ImageData))
+    {
+        <img class="archive-seal__image"
+             src="data:@MimeType;base64,@Base64ImageData"
+             alt="@AltText"
+             width="@Size"
+             height="@Size" />
+    }
+    else
+    {
+        <AquilaIcon Size="@Size" />
+    }
+</div>
+
+@code {
+    [Parameter] public int Size { get; set; } = 64;
+
+    /// <summary>Raw Base64 payload (no "data:" prefix). Leave null to use the default vector mark.</summary>
+    [Parameter] public string? Base64ImageData { get; set; }
+
+    [Parameter] public string MimeType { get; set; } = "image/png";
+
+    [Parameter] public string AltText { get; set; } = "Archive Seal";
+}

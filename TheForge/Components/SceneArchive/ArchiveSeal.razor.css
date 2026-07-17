@@ -1,0 +1,13 @@
+.archive-seal {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    filter: drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 30%, transparent));
+}
+
+.archive-seal__image {
+    object-fit: contain;
+    width: 100%;
+    height: 100%;
+}

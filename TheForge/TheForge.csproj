@@ -31,4 +31,12 @@
     <ItemGroup>
         <Folder Include="Tests\" />
     </ItemGroup>
+
+    <ItemGroup>
+      <_ContentIncludedByDefault Remove="Components\SceneArchive\ArchiveLinkStatus.razor" />
+      <_ContentIncludedByDefault Remove="Components\SceneArchive\ArchiveSeal.razor" />
+      <_ContentIncludedByDefault Remove="Components\SceneArchive\SceneCard.razor" />
+      <_ContentIncludedByDefault Remove="Components\SceneArchive\SceneOverlay.razor" />
+      <_ContentIncludedByDefault Remove="Components\SceneArchive\SceneRow.razor" />
+    </ItemGroup>
 </Project>

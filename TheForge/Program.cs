@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using TheForge.Components;
 using TheForge.Data;
+using TheForge.Data.SceneArchive;
 using TheForge.Services;
 using TheForge.Services.Interfaces;
+using TheForge.Services.SceneArchive;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,6 +22,18 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddDbContext<ForgeDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("ForgeDb")));
+
+// Scene Archive: separate, read-only DbContext against battlescenes.db (an independent
+// SQLite file populated externally by the OmnissiahCore scene-weaving pipeline — this app
+// never migrates or writes to it, so it's deliberately not on ForgeDbContext).
+builder.Services.AddDbContext<SceneArchiveDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("SceneArchiveDb")));
+builder.Services.AddScoped<ISceneArchiveRepository, SceneArchiveRepository>();
+// Singleton: SceneRankingService owns the rotation-window cache itself; Scoped would create
+// a fresh (empty) cache per request and defeat the whole point of caching it.
+builder.Services.AddScoped<ISceneRankingService, SceneRankingService>();
+builder.Services.AddScoped<ISceneArchiveService, SceneArchiveService>();
+builder.Services.AddScoped<IArchiveAccessRequestService, ArchiveAccessRequestService>();
 
 builder.Services.AddHttpClient<IFastApiClient, FastApiClient>(client =>
 {

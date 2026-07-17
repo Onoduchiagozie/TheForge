@@ -1,0 +1,113 @@
+@page "/"
+@page "/archive"
+@layout ForgeLayout
+@inject ISceneArchiveService SceneArchiveService
+@inject ILogger<SceneArchivePage> Logger
+
+<PageTitle>Black Oculus — Scene Archive</PageTitle>
+
+<div class="scene-archive" role="main" aria-label="Battle Scene Archive">
+    <header class="scene-archive__header">
+        <div>
+            <h1 class="scene-archive__title">Scene Archive</h1>
+            <p class="scene-archive__subtitle">Curated Horus Heresy battle chronicles, indexed and awaiting recall.</p>
+        </div>
+        <div class="scene-archive__header-actions">
+            <ArchiveLinkStatus />
+            <a href="/workspace" class="scene-archive__workspace-link">Query Terminal →</a>
+        </div>
+    </header>
+
+    @if (_loadError is not null)
+    {
+        <div class="scene-archive__error" role="alert">@_loadError</div>
+    }
+    else if (_rows is null)
+    {
+        <div class="scene-archive__loading" aria-live="polite" aria-label="Loading archive">
+            @for (var i = 0; i < 4; i++)
+            {
+                <div class="scene-archive__row-skeleton"></div>
+            }
+        </div>
+    }
+    else if (_rows.Count == 0)
+    {
+        <div class="scene-archive__empty">The archive link reports no indexed chronicles yet.</div>
+    }
+    else
+    {
+        @foreach (var row in _rows)
+        {
+            <SceneRow Row="row" OnCardSelected="OpenOverlay" />
+        }
+    }
+</div>
+
+@* SceneOverlay renders on top of everything else when a card is selected. *@
+<SceneOverlay IsOpen="_overlayOpen"
+              Detail="_overlayDetail"
+              IsLoading="_overlayLoading"
+              ErrorMessage="_overlayError"
+              OnClose="CloseOverlay" />
+
+@code {
+    private List<SceneRowViewModel>? _rows;
+    private string? _loadError;
+
+    private bool _overlayOpen;
+    private bool _overlayLoading;
+    private string? _overlayError;
+    private SceneDetailViewModel? _overlayDetail;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _rows = await SceneArchiveService.GetLandingRowsAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load scene archive landing rows");
+            _loadError = "ARCHIVE LINK DEGRADED — unable to retrieve chronicles.";
+        }
+    }
+
+    private async Task OpenOverlay(int sceneId)
+    {
+        _overlayOpen = true;
+        _overlayLoading = true;
+        _overlayError = null;
+        _overlayDetail = null;
+        StateHasChanged();
+
+        try
+        {
+            var detail = await SceneArchiveService.GetSceneDetailAsync(sceneId);
+            if (detail is null)
+            {
+                _overlayError = "ARCHIVE RECORD NOT FOUND — this chronicle may have been reindexed.";
+            }
+            else
+            {
+                _overlayDetail = detail;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load scene detail {SceneId}", sceneId);
+            _overlayError = "ARCHIVE LINK DEGRADED — unable to decrypt this record.";
+        }
+        finally
+        {
+            _overlayLoading = false;
+        }
+    }
+
+    private void CloseOverlay()
+    {
+        _overlayOpen = false;
+        _overlayDetail = null;
+        _overlayError = null;
+    }
+}

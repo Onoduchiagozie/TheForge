@@ -1,0 +1,84 @@
+@* AquilaIcon.razor
+   High-detail Imperial Aquila icon, built from explicit path geometry (not freehand curves)
+   so it stays crisp at any size. Colors come from .aquila-icon / .aquila-icon__eye rules in
+   workspace.css, which key off your existing --accent / --bg-panel variables — no separate
+   theme system, no invented variable names.
+
+   Usage:
+     <AquilaIcon Size="56" />                 // static brand mark, brand-panel
+     <AquilaIcon Size="44" Spinning="true" />  // animated, streaming/pipeline indicator
+*@
+
+<svg class="aquila-icon @(Spinning ? "aquila-icon--spinning" : "")"
+     width="@Size"
+     height="@(Size * 0.8)"
+     viewBox="0 0 240 192"
+     xmlns="http://www.w3.org/2000/svg"
+     aria-hidden="true">
+    <g class="aquila-icon__body" stroke-linejoin="round">
+
+        <!-- TOP BAR -->
+        <path d="M4 48 L236 48 L236 56 L4 56 Z"/>
+
+        <!-- LEFT WING: 8 stepped primaries fanning down from the bar -->
+        <path d="M4 48 L4 56 L66 64 L62 56 Z"/>
+        <path d="M8 60 L12 68 L74 76 L66 66 Z"/>
+        <path d="M14 71 L20 79 L80 88 L70 78 Z"/>
+        <path d="M21 82 L28 90 L84 99 L74 89 Z"/>
+        <path d="M29 92 L38 99 L86 109 L75 100 Z"/>
+        <path d="M38 101 L48 107 L86 118 L74 110 Z"/>
+        <path d="M48 109 L60 114 L84 125 L70 119 Z"/>
+        <path d="M58 116 L72 120 L80 130 L66 126 Z"/>
+
+        <!-- RIGHT WING (mirror) -->
+        <path d="M236 48 L236 56 L174 64 L178 56 Z"/>
+        <path d="M232 60 L228 68 L166 76 L174 66 Z"/>
+        <path d="M226 71 L220 79 L160 88 L170 78 Z"/>
+        <path d="M219 82 L212 90 L156 99 L166 89 Z"/>
+        <path d="M211 92 L202 99 L154 109 L165 100 Z"/>
+        <path d="M202 101 L192 107 L154 118 L166 110 Z"/>
+        <path d="M192 109 L180 114 L156 125 L170 119 Z"/>
+        <path d="M182 116 L168 120 L160 130 L174 126 Z"/>
+
+        <!-- LEFT HEAD: backswept crest fused with a hooked beak crossing past center -->
+        <path d="M120 52
+                 C 107 51, 94 57, 88 68
+                 C 85 75, 85 82, 88 87
+                 L 97 88
+                 L 134 78
+                 L 103 94
+                 L 93 91
+                 C 89 87, 87 80, 90 74
+                 C 93 65, 104 58, 117 58
+                 Z"/>
+        <circle class="aquila-icon__eye" cx="96" cy="70" r="2.4"/>
+
+        <!-- RIGHT HEAD (mirror) -->
+        <path d="M120 52
+                 C 133 51, 146 57, 152 68
+                 C 155 75, 155 82, 152 87
+                 L 143 88
+                 L 106 78
+                 L 137 94
+                 L 147 91
+                 C 151 87, 153 80, 150 74
+                 C 147 65, 136 58, 123 58
+                 Z"/>
+        <circle class="aquila-icon__eye" cx="144" cy="70" r="2.4"/>
+
+        <!-- CHEST / BREASTPLATE -->
+        <path d="M97 88 L120 58 L143 88 L130 91 L120 76 L110 91 Z"/>
+        <path d="M110 91 L120 76 L130 91 L126 150 L120 158 L114 150 Z"/>
+
+        <!-- TAIL / TALON FLOURISH -->
+        <path d="M112 148 L94 158 L99 167 L110 161 L107 173 L116 165 L120 180 L124 165 L133 173 L130 161 L141 167 L146 158 L128 148 L120 156 Z"/>
+    </g>
+</svg>
+
+@code {
+    /// <summary>Rendered width in pixels; height follows the icon's natural 240:192 aspect ratio.</summary>
+    [Parameter] public int Size { get; set; } = 48;
+
+    /// <summary>When true, applies a slow rotation — used for the streaming/pipeline-progress state.</summary>
+    [Parameter] public bool Spinning { get; set; } = false;
+}

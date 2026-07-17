@@ -14,7 +14,7 @@
 
         <div class="scene-overlay__panel">
             <button type="button" class="scene-overlay__close" @onclick="Close" @ref="_closeButtonRef" aria-label="Close">
-                ✕
+                ✕ Cancel
             </button>
 
             @if (IsLoading)
@@ -23,7 +23,7 @@
             }
             else if (ErrorMessage is not null)
             {
-                <div class="scene-overlay__status scene-overlay__status--error" role="alert">@ErrorMessage</div>
+                <div class="scene-overlay__status scene-overlay__status--error" role="alert">hey jude @ErrorMessage</div>
             }
             else if (Detail is not null)
             {

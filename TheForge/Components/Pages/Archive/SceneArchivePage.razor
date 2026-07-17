@@ -48,7 +48,7 @@
 <SceneOverlay IsOpen="_overlayOpen"
               Detail="_overlayDetail"
               IsLoading="_overlayLoading"
-              ErrorMessage="_overlayError"
+         
               OnClose="CloseOverlay" />
 
 @code {
@@ -57,7 +57,7 @@
 
     private bool _overlayOpen;
     private bool _overlayLoading;
-    private string? _overlayError;
+    private string _overlayError;
     private SceneDetailViewModel? _overlayDetail;
 
     protected override async Task OnInitializedAsync()
@@ -83,7 +83,7 @@
 
         try
         {
-            var detail = await SceneArchiveService.GetSceneDetailAsync(sceneId);
+            SceneDetailViewModel detail = await SceneArchiveService.GetSceneDetailAsync(sceneId);
             if (detail is null)
             {
                 _overlayError = "ARCHIVE RECORD NOT FOUND — this chronicle may have been reindexed.";

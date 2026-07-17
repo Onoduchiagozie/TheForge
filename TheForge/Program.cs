@@ -20,8 +20,8 @@ builder.Services.AddControllers()
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-builder.Services.AddDbContext<ForgeDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("ForgeDb")));
+// builder.Services.AddDbContext<ForgeDbContext>(options =>
+//     options.UseSqlite(builder.Configuration.GetConnectionString("ForgeDb")));
 
 // Scene Archive: separate, read-only DbContext against battlescenes.db (an independent
 // SQLite file populated externally by the OmnissiahCore scene-weaving pipeline — this app
@@ -102,11 +102,11 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<ForgeDbContext>();
-    db.Database.Migrate();
-}
+// using (var scope = app.Services.CreateScope())
+// {
+//     var db = scope.ServiceProvider.GetRequiredService<ForgeDbContext>();
+//     db.Database.Migrate();
+// }
 
 if (app.Environment.IsDevelopment())
 {

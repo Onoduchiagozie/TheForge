@@ -1,0 +1,53 @@
+@* SceneSearchBar.razor
+   Searches the woven scene bank (scene_name/teaser/chronicle) — never the raw ~498,000-chunk
+   corpus. Grimdark terminal styling per request: green-on-black, monospace, native blinking
+   caret (no JS needed for that part — caret-color does it).
+*@
+
+<div class="scene-search">
+    <span class="scene-search__prompt" aria-hidden="true">&gt;</span>
+    <input type="text"
+           class="scene-search__input"
+           placeholder="search the scene bank... e.g. erebus"
+           value="@Query"
+           @oninput="OnInput"
+           @onkeydown="HandleKeyDown"
+           aria-label="Search scenes" />
+    @if (!string.IsNullOrWhiteSpace(Query))
+    {
+        <button type="button" class="scene-search__clear" @onclick="Clear" aria-label="Clear search">✕</button>
+    }
+</div>
+
+@code {
+    [Parameter] public string Query { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> QueryChanged { get; set; }
+    [Parameter] public EventCallback OnSearch { get; set; }
+    [Parameter] public EventCallback OnClear { get; set; }
+
+    private async Task OnInput(ChangeEventArgs e)
+    {
+        Query = e.Value?.ToString() ?? string.Empty;
+        await QueryChanged.InvokeAsync(Query);
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "Enter":
+                await OnSearch.InvokeAsync();
+                break;
+            case "Escape":
+                await Clear();
+                break;
+        }
+    }
+
+    private async Task Clear()
+    {
+        Query = string.Empty;
+        await QueryChanged.InvokeAsync(Query);
+        await OnClear.InvokeAsync();
+    }
+}

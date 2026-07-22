@@ -45,9 +45,13 @@ public class SceneArchiveRepository(SceneArchiveDbContext db) : ISceneArchiveRep
             .OrderBy(t => t)
             .ToListAsync(ct);
 
-    public async Task<List<Scene>> GetScenePageAsync(string sceneType, int skip, int take, CancellationToken ct = default)
+    public async Task<List<Scene>> GetScenePageAsync(string sceneType, int skip, int take, IReadOnlySet<int>? excludeSceneIds = null, CancellationToken ct = default)
     {
         var query = db.Scenes.Where(s => s.SceneType == sceneType);
+
+        if (excludeSceneIds is { Count: > 0 })
+            query = query.Where(s => !excludeSceneIds.Contains(s.SceneId));
+
         query = ByPriority(query);
         return await CardProjection(query).Skip(skip).Take(take).ToListAsync(ct);
     }
@@ -67,4 +71,28 @@ public class SceneArchiveRepository(SceneArchiveDbContext db) : ISceneArchiveRep
         sceneType is null
             ? await db.Scenes.CountAsync(ct)
             : await db.Scenes.CountAsync(s => s.SceneType == sceneType, ct);
+
+    // Widened to search Book.Title and StitchedText as well as scene_name/teaser/chronicle —
+    // a user might search a book name, not just a character. Still only ever the woven scene
+    // bank (scenes + books), never the raw ~498,000-chunk corpus.
+    public async Task<List<Scene>> SearchScenesAsync(string query, int take, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+            return [];
+
+        // Escape SQL LIKE wildcards in the user's input so a literal "%" or "_" in a search
+        // term behaves as a literal character instead of a wildcard.
+        var escaped = query.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
+        var pattern = $"%{escaped}%";
+
+        var matches = db.Scenes.Where(s =>
+            (s.SceneName != null && EF.Functions.Like(s.SceneName, pattern, "\\")) ||
+            (s.Teaser != null && EF.Functions.Like(s.Teaser, pattern, "\\")) ||
+            (s.Chronicle != null && EF.Functions.Like(s.Chronicle, pattern, "\\")) ||
+            (s.StitchedText != null && EF.Functions.Like(s.StitchedText, pattern, "\\")) ||
+            EF.Functions.Like(s.Book.Title, pattern, "\\"));
+
+        matches = ByPriority(matches);
+        return await CardProjection(matches).Take(take).ToListAsync(ct);
+    }
 }

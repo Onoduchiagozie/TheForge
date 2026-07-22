@@ -36,7 +36,7 @@
     display: flex;
     gap: var(--space-3);
     width: max-content;
-    animation: scene-row-scroll-left 90s linear infinite;
+    animation: scene-row-scroll-left 190s linear infinite;
 }
 
 .scene-row--right .scene-row__track {

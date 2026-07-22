@@ -80,6 +80,8 @@
 .scene-archive__subtitle {
     color: var(--text-muted);
     margin: var(--space-1) 0 0;
+    max-width: 620px;
+    line-height: 1.5;
 }
 
 .scene-archive__error,
@@ -91,32 +93,129 @@
     border-radius: 4px;
 }
 
-.scene-archive__loading {
+.scene-archive__footer {
+    margin-top: var(--space-5);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--bg-elevated);
     display: flex;
     flex-direction: column;
-    gap: var(--space-4);
+    gap: var(--space-2);
 }
 
-.scene-archive__row-skeleton {
-    height: 180px;
-    border-radius: 6px;
-    background: linear-gradient(
-        100deg,
-        var(--bg-panel) 30%,
-        var(--bg-elevated) 50%,
-        var(--bg-panel) 70%
-    );
-    background-size: 200% 100%;
-    animation: scene-archive-shimmer 2.2s ease-in-out infinite;
+.scene-archive__footer-stats {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
 }
 
-@keyframes scene-archive-shimmer {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+.scene-archive__footer-note {
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+    max-width: 720px;
+}
+
+.scene-archive__footer-note code {
+    font-family: var(--font-mono);
+    background: var(--bg-elevated);
+    padding: 0 4px;
+    border-radius: 2px;
+}
+
+/* Terminal-style loading — used both for the initial page load and while a search runs.
+   Green-on-black, monospace, each line fading in in sequence, ending on a blinking cursor. */
+.scene-archive__terminal-loading {
+    font-family: var(--font-mono);
+    background: #060a06;
+    border: 1px solid #1f5c22;
+    border-radius: 4px;
+    padding: var(--space-4);
+    color: #39ff14;
+    max-width: 480px;
+}
+
+.scene-archive__terminal-loading p {
+    margin: 0 0 var(--space-1);
+    opacity: 0;
+    animation: scene-archive-terminal-line-in 400ms ease forwards;
+}
+
+.scene-archive__terminal-loading p:nth-child(1) { animation-delay: 0ms; }
+.scene-archive__terminal-loading p:nth-child(2) { animation-delay: 350ms; }
+.scene-archive__terminal-loading p:nth-child(3) { animation-delay: 700ms; }
+.scene-archive__terminal-loading p:nth-child(4) { animation-delay: 1050ms; }
+
+@keyframes scene-archive-terminal-line-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.scene-archive__terminal-cursor {
+    animation-name: scene-archive-terminal-line-in, scene-archive-terminal-blink;
+    animation-duration: 400ms, 1s;
+    animation-delay: 1050ms, 1050ms;
+    animation-iteration-count: 1, infinite;
+    animation-timing-function: ease, steps(1);
+}
+
+@keyframes scene-archive-terminal-blink {
+    50% { opacity: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .scene-archive__row-skeleton {
+    .scene-archive__terminal-loading p,
+    .scene-archive__terminal-cursor {
         animation: none;
+        opacity: 1;
     }
+}
+
+/* Search bar + results */
+.scene-archive__search-bar {
+    margin-bottom: var(--space-2);
+}
+
+.scene-archive__search-results {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.scene-archive__search-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+.scene-archive__search-status {
+    font-family: var(--font-mono);
+    color: #39ff14;
+    margin: 0;
+}
+
+.scene-archive__search-back {
+    background: transparent;
+    border: 1px solid var(--bg-elevated);
+    color: var(--text-muted);
+    border-radius: 4px;
+    padding: var(--space-1) var(--space-3);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.scene-archive__search-back:hover,
+.scene-archive__search-back:focus-visible {
+    color: var(--text-primary);
+    border-color: var(--accent);
+}
+
+.scene-archive__search-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
 }

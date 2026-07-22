@@ -27,6 +27,17 @@ public class SceneArchiveService(ISceneRankingService rankingService, ISceneArch
         return scene is null ? null : ToDetailViewModel(scene);
     }
 
+    private const int SearchResultLimit = 40;
+
+    public async Task<List<SceneCardSummary>> SearchScenesAsync(string query, CancellationToken ct = default)
+    {
+        var matches = await repository.SearchScenesAsync(query, SearchResultLimit, ct);
+        return matches.Select(scene => ToCardSummary(scene, isFeatured: false)).ToList();
+    }
+
+    public Task<int> GetTotalSceneCountAsync(CancellationToken ct = default) =>
+        repository.GetSceneCountAsync(null, ct);
+
     private static SceneCardSummary ToCardSummary(Scene scene, bool isFeatured)
     {
         var sceneType = scene.SceneType ?? "unclassified";

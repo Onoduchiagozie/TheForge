@@ -1,10 +1,15 @@
 @* SceneOverlay.razor
-   Presentational only — SceneArchivePage owns fetching Detail/IsLoading/ErrorMessage. Keeps
-   this component reusable and keeps "which scene is open" as a single source of truth on the
-   page rather than duplicated state.
+   Presentational only — SceneArchivePage owns fetching Detail/IsLoading/ErrorMessage.
+
+   Every JS interop call below is wrapped in try/catch. Without that, a JS failure inside
+   OnAfterRenderAsync throws unhandled, which kills the entire Blazor Server circuit — that's
+   what caused the crash-on-every-click behavior seen earlier. With it, a JS failure just
+   falls back to showing the chronicle text directly (no typewriter animation) instead of
+   breaking the page.
 *@
 @using Microsoft.JSInterop
 @inject IJSRuntime JS
+@inject ILogger<SceneOverlay> Logger
 @implements IAsyncDisposable
 
 @if (IsOpen)
@@ -14,7 +19,7 @@
 
         <div class="scene-overlay__panel">
             <button type="button" class="scene-overlay__close" @onclick="Close" @ref="_closeButtonRef" aria-label="Close">
-                ✕ Cancel
+                ✕
             </button>
 
             @if (IsLoading)
@@ -23,7 +28,7 @@
             }
             else if (ErrorMessage is not null)
             {
-                <div class="scene-overlay__status scene-overlay__status--error" role="alert">hey jude @ErrorMessage</div>
+                <div class="scene-overlay__status scene-overlay__status--error" role="alert">@ErrorMessage</div>
             }
             else if (Detail is not null)
             {
@@ -46,7 +51,14 @@
                     <div><dt>Woven</dt><dd>@(Detail.WovenAt ?? "unknown")</dd></div>
                 </dl>
 
-                <div class="scene-overlay__chronicle" id="scene-overlay-chronicle"></div>
+                @if (_jsAvailable)
+                {
+                    <div class="scene-overlay__chronicle" id="scene-overlay-chronicle"></div>
+                }
+                else
+                {
+                    <div class="scene-overlay__chronicle">@Detail.Chronicle</div>
+                }
             }
         </div>
     </div>
@@ -63,30 +75,52 @@
     private int? _lastAnimatedSceneId;
     private ElementReference _closeButtonRef;
     private bool _pendingFocus;
+    private bool _jsAvailable = true;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            _module = await JS.InvokeAsync<IJSObjectReference>(
-                "import", "./Components/SceneArchive/SceneOverlay.razor.js");
+            try
+            {
+                _module = await JS.InvokeAsync<IJSObjectReference>(
+                    "import", "./Components/SceneArchive/SceneOverlay.razor.js");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Scene overlay JS module failed to load — falling back to static chronicle text");
+                _jsAvailable = false;
+            }
         }
 
-        if (_module is null)
-            return;
-
-        if (IsOpen && Detail is not null && Detail.Id != _lastAnimatedSceneId)
+        if (_jsAvailable && _module is not null && IsOpen && Detail is not null && Detail.Id != _lastAnimatedSceneId)
         {
             _lastAnimatedSceneId = Detail.Id;
-            // charsPerTick/tickMs tuned for a readable-but-not-glacial decrypt effect on
-            // typical chronicle lengths; adjust freely, it's just two numbers.
-            await _module.InvokeVoidAsync("startTypewriter", "scene-overlay-chronicle", Detail.Chronicle, 3, 18);
+            try
+            {
+                // charsPerTick/tickMs tuned for a readable-but-not-glacial decrypt effect on
+                // typical chronicle lengths; adjust freely, it's just two numbers.
+                await _module.InvokeVoidAsync("startTypewriter", "scene-overlay-chronicle", Detail.Chronicle, 3, 18);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Typewriter playback failed for scene {SceneId} — falling back to static text", Detail.Id);
+                _jsAvailable = false;
+                StateHasChanged(); // switch the markup branch to the static fallback
+            }
         }
 
         if (_pendingFocus)
         {
             _pendingFocus = false;
-            await _closeButtonRef.FocusAsync();
+            try
+            {
+                await _closeButtonRef.FocusAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Failed to focus overlay close button — non-critical, continuing");
+            }
         }
 
         if (!IsOpen)
@@ -113,9 +147,16 @@
 
     private async Task Close()
     {
-        if (_module is not null)
+        if (_jsAvailable && _module is not null)
         {
-            await _module.InvokeVoidAsync("stopTypewriter");
+            try
+            {
+                await _module.InvokeVoidAsync("stopTypewriter");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Failed to stop typewriter on close — non-critical, continuing");
+            }
         }
 
         await OnClose.InvokeAsync();
@@ -130,9 +171,9 @@
                 await _module.InvokeVoidAsync("stopTypewriter");
                 await _module.DisposeAsync();
             }
-            catch (JSDisconnectedException)
+            catch (Exception)
             {
-                // Circuit already gone (e.g. tab closed) — nothing to clean up client-side.
+                // Circuit already gone, or the module never fully loaded — nothing to clean up.
             }
         }
     }

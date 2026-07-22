@@ -1,0 +1,25 @@
+﻿con.razor · CSS
+    /* AquilaIcon.razor.css
+       Component-scoped, so this applies wherever <AquilaIcon> is used — Archive page, Query
+       Terminal, anywhere else — with no dependency on that page happening to load workspace.css.
+       Blazor's CSS isolation gives these selectors higher specificity than a plain global rule
+       targeting the same elements, so this wins regardless of what else is loaded.
+     
+       Golden yellow, not tied to --accent — this is a deliberate fixed brand color for the
+       Aquila specifically, independent of whatever theme preset is currently active elsewhere.
+    */
+
+.aquila-icon__body path {
+    fill: #d4af37;
+    stroke: #d4af37;
+}
+
+.aquila-icon__eye {
+    fill: var(--bg-panel, #1a1a1a);
+}
+
+.aquila-icon:hover .aquila-icon__body path {
+    fill: #e8c563;
+    stroke: #e8c563;
+}
+ 

@@ -6,15 +6,15 @@ namespace TheForge.Services.SceneArchive;
 
 public class SceneRankingService(ISceneArchiveRepository repository, IMemoryCache cache) : ISceneRankingService
 {
-    // How often the featured rotation reshuffles. Everyone browsing within the same window
-    // sees the same order (a reload mid-window shouldn't feel random/broken); a new window
-    // means a new shuffle, which is what surfaces different content to repeat visitors.
-    private static readonly TimeSpan RotationWindow = TimeSpan.FromMinutes(20);
+    // Shortened from 20 to 15 minutes — combined with the softer shuffle weighting below,
+    // this means noticeably more turnover in what's visible, not the same handful of top
+    // scorers parked in the front slot for most of an hour.
+    private static readonly TimeSpan RotationWindow = TimeSpan.FromMinutes(15);
 
-    // Candidate pool sizes per row, pulled via the repository's card projection (no Chronicle
-    // text). Keeps memory bounded regardless of how many thousand scenes exist for a category.
-    private const int CandidatePoolPerRow = 60;
-    private const int TopScenesPoolSize = 80;
+    // Widened significantly from the original 60/80 — against a ~6,180-row scenes table,
+    // pools that small meant most of the archive was never even in the running to be shown.
+    private const int CandidatePoolPerRow = 140;
+    private const int TopScenesPoolSize = 160;
 
     private const string CacheKeyPrefix = "scene-archive:rowplans:";
 
@@ -42,10 +42,7 @@ public class SceneRankingService(ISceneArchiveRepository repository, IMemoryCach
         var plans = new List<RowPlan>();
         var seed = unchecked((int)epoch);
 
-        // Row 0: pinned spotlight — the highest score/rank scenes across the WHOLE corpus,
-        // no series/book filtering of any kind. This is a general 40k database; "best first"
-        // means highest score, full stop. GetTopScenesAsync already orders by Score DESC,
-        // Rank ASC at the SQL level, so this pool is already the best of the best.
+        // Row 0: pinned spotlight — highest score/rank scenes across the WHOLE corpus.
         var topScenes = await repository.GetTopScenesAsync(TopScenesPoolSize, ct);
         if (topScenes.Count > 0)
         {
@@ -56,8 +53,12 @@ public class SceneRankingService(ISceneArchiveRepository repository, IMemoryCach
                 Scenes: WeightedShuffle(topScenes, seed)));
         }
 
-        // One row per remaining scene_type, alternating scroll direction so adjacent rows
-        // are visually distinct in motion as well as accent color.
+        // A scene already placed in the Top-Ranked row is excluded from its own scene_type
+        // row below — previously the same standout scene (e.g. a single unusually high-score
+        // Erebus scene) would appear in BOTH the spotlight row and its category row on every
+        // single page load, which is a big part of why it felt omnipresent.
+        var topSceneIds = topScenes.Select(s => s.SceneId).ToHashSet();
+
         var sceneTypes = await repository.GetSceneTypesAsync(ct);
         var rowIndex = plans.Count;
 
@@ -65,7 +66,7 @@ public class SceneRankingService(ISceneArchiveRepository repository, IMemoryCach
         {
             ct.ThrowIfCancellationRequested();
 
-            var pool = await repository.GetScenePageAsync(sceneType, 0, CandidatePoolPerRow, ct);
+            var pool = await repository.GetScenePageAsync(sceneType, 0, CandidatePoolPerRow, topSceneIds, ct);
             if (pool.Count == 0)
                 continue;
 
@@ -82,12 +83,12 @@ public class SceneRankingService(ISceneArchiveRepository repository, IMemoryCach
     }
 
     /// <summary>
-    /// Efraimidis–Spirakis weighted random sampling. Input arrives priority-ordered (best
-    /// first) from the repository. Each item gets weight 1/(position+1); final order is
-    /// descending by key = rand^(1/weight), seeded per rotation window. High-priority items
-    /// land near the front far more often than not, but which exact items and what order
-    /// varies by window — that's the "discover new content" behavior. Deliberately NOT a
-    /// uniform shuffle: a pure shuffle would bury the best scenes as often as it surfaces them.
+    /// Weighted random sampling (Efraimidis–Spirakis), same technique as before but with a
+    /// softer weight curve: 1/sqrt(position+1) instead of 1/(position+1). The old formula gave
+    /// the single top-scored item in a pool such a dominant weight that it landed in/near the
+    /// front slot almost every rotation window — which is exactly the "I keep seeing the same
+    /// scene" complaint. The sqrt curve still favors higher-scored scenes overall, but gives
+    /// mid-tier items in the pool a real chance to surface too.
     /// </summary>
     private static List<Scene> WeightedShuffle(List<Scene> priorityOrdered, int seed)
     {
@@ -95,7 +96,7 @@ public class SceneRankingService(ISceneArchiveRepository repository, IMemoryCach
         return priorityOrdered
             .Select((scene, index) =>
             {
-                var weight = 1.0 / (index + 1);
+                var weight = 1.0 / Math.Sqrt(index + 1);
                 var key = Math.Pow(rng.NextDouble(), 1.0 / weight);
                 return (scene, key);
             })

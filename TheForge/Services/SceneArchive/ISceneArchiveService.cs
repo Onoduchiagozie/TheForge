@@ -13,4 +13,10 @@ public interface ISceneArchiveService
 
     /// <summary>Full detail for the fullscreen overlay. Null if the scene id doesn't exist.</summary>
     Task<SceneDetailViewModel?> GetSceneDetailAsync(int sceneId, CancellationToken ct = default);
+
+    /// <summary>Searches the woven scene bank (name/teaser/chronicle) — not the raw chunk corpus.</summary>
+    Task<List<SceneCardSummary>> SearchScenesAsync(string query, CancellationToken ct = default);
+
+    /// <summary>Total indexed scene count, for footer stats — cheap COUNT(*), not a full load.</summary>
+    Task<int> GetTotalSceneCountAsync(CancellationToken ct = default);
 }

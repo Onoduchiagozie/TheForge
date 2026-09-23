@@ -1,0 +1,120 @@
+﻿@using TheForge.Components.Shared 
+<div class="source-multiselect">
+    <button type="button" class="source-multiselect__toggle" @onclick="ToggleOpen" disabled="@Disabled">
+        <span>SOURCE CONTROL</span>
+        @if (Selected.Count > 0)
+        {
+        <span class="source-multiselect__count">@Selected.Count</span>
+        }
+        <svg class="source-multiselect__chevron @(_open ? "source-multiselect__chevron--open" : "")" viewBox="0 0 24 24" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+
+    @if (_open)
+    {
+    <div class="source-multiselect__panel">
+        <input class="filter-input"
+               placeholder="Search exact source files..."
+               value="@_query"
+               @oninput="OnSearch" />
+
+        @if (Selected.Count > 0)
+        {
+        <div class="source-multiselect__chips">
+            @foreach (var s in Selected)
+            {
+            <span class="source-multiselect__chip">
+                @TrimmedName(s)
+                <button type="button" @onclick="() => Remove(s)" aria-label="Remove">×</button>
+            </span>
+            }
+            <button type="button" class="source-multiselect__clear" @onclick="ClearAll">Clear all</button>
+        </div>
+        }
+
+        <ul class="source-multiselect__list">
+            @foreach (var source in _filtered)
+            {
+            <li>
+                <label class="source-multiselect__item">
+                    <input type="checkbox" checked="@Selected.Contains(source)" @onchange="e => Toggle(source, (bool)e.Value!)" />
+                    <span>@TrimmedName(source)</span>
+                </label>
+            </li>
+            }
+        </ul>
+    </div>
+    }
+</div>
+
+@code {
+    [Parameter] public List<string> AllSources { get; set; } = [];
+    [Parameter] public List<string> Selected { get; set; } = [];
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public EventCallback<List<string>> SelectedChanged { get; set; }
+
+    private bool _open;
+    private string _query = "";
+    private List<string> _filtered = [];
+
+    private const int MaxResults = 40;
+
+    protected override void OnParametersSet()
+    {
+        RefreshFiltered();
+    }
+
+    private void ToggleOpen()
+    {
+        _open = !_open;
+        if (_open)
+        {
+            RefreshFiltered();
+        }
+    }
+
+    private void OnSearch(ChangeEventArgs e)
+    {
+        _query = e.Value?.ToString() ?? "";
+        RefreshFiltered();
+    }
+
+    private void RefreshFiltered()
+    {
+        var pool = string.IsNullOrWhiteSpace(_query)
+            ? AllSources
+            : AllSources.Where(s => s.Contains(_query, StringComparison.OrdinalIgnoreCase));
+
+        _filtered = pool.Take(MaxResults).ToList();
+    }
+
+    private async Task Toggle(string source, bool isChecked)
+    {
+        var updated = new List<string>(Selected);
+        if (isChecked && !updated.Contains(source))
+        {
+            updated.Add(source);
+        }
+        else if (!isChecked)
+        {
+            updated.Remove(source);
+        }
+
+        Selected = updated;
+        await SelectedChanged.InvokeAsync(updated);
+    }
+
+    private async Task Remove(string source)
+    {
+        var updated = Selected.Where(s => s != source).ToList();
+        Selected = updated;
+        await SelectedChanged.InvokeAsync(updated);
+    }
+
+    private async Task ClearAll()
+    {
+        Selected = [];
+        await SelectedChanged.InvokeAsync([]);
+    }
+
+    private static string TrimmedName(string source) => System.IO.Path.GetFileName(source);
+}

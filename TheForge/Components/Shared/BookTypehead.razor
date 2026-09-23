@@ -1,0 +1,125 @@
+﻿ @using TheForge.Components.Shared 
+
+<div class="book-typeahead">
+    <div class="filter-input-wrap">
+        <svg class="filter-input__icon" viewBox="0 0 24 24" stroke-width="1.6" aria-hidden="true"><path d="M4 4h4v16H4zM10 4h4v16h-4zM16 5l4-1v16l-4 1z"/></svg>
+        <input class="filter-input"
+               placeholder="@Placeholder"
+               disabled="@Disabled"
+               value="@_query"
+               @oninput="OnInput"
+               @onfocus="() => _showResults = _filtered.Count > 0"
+               @onfocusout="HandleBlur" />
+        @if (_selectedFilename is not null)
+        {
+        <button type="button" class="book-typeahead__clear" @onclick="ClearSelection" aria-label="Clear book filter">×</button>
+        }
+    </div>
+
+    @if (_showResults && _filtered.Count > 0)
+    {
+    <ul class="book-typeahead__results">
+        @foreach (var book in _filtered)
+        {
+        <li>
+            <button type="button" class="book-typeahead__result" @onmousedown="() => SelectBook(book)">
+                <span class="book-typeahead__title">@book.Title</span>
+                @if (!string.IsNullOrWhiteSpace(book.Author))
+                {
+                <span class="book-typeahead__author">@book.Author</span>
+                }
+                <span class="book-typeahead__badge book-typeahead__badge--@book.Category">@FormatCategory(book.Category)</span>
+            </button>
+        </li>
+        }
+    </ul>
+    }
+</div>
+
+@code {
+    [Parameter] public List<BookInfo> Books { get; set; } = [];
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public string Placeholder { get; set; } = "Search books...";
+    [Parameter] public string? ExternalClearSignal { get; set; }
+    [Parameter] public EventCallback<string?> OnBookSelected { get; set; }
+
+    private string _query = "";
+    private string? _selectedFilename;
+    private bool _showResults;
+    private List<BookInfo> _filtered = [];
+
+    private const int MaxResults = 25;
+
+    protected override void OnParametersSet()
+    {
+        // Parent sets this to a fresh non-null value whenever it needs to
+        // force-clear this component from outside (e.g. mutual-exclusivity
+        // with the source multi-select). Comparing against the currently
+        // selected filename keeps this idempotent across re-renders.
+        if (ExternalClearSignal is null && _selectedFilename is not null)
+        {
+            ClearInternal();
+        }
+    }
+
+    private void OnInput(ChangeEventArgs e)
+    {
+        _query = e.Value?.ToString() ?? "";
+
+        if (_selectedFilename is not null)
+        {
+            _selectedFilename = null;
+            _ = OnBookSelected.InvokeAsync(null);
+        }
+
+        if (string.IsNullOrWhiteSpace(_query))
+        {
+            _filtered = [];
+            _showResults = false;
+            return;
+        }
+
+        _filtered = Books
+            .Where(b =>
+                (b.Title?.Contains(_query, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (b.Author?.Contains(_query, StringComparison.OrdinalIgnoreCase) ?? false))
+            .Take(MaxResults)
+            .ToList();
+
+        _showResults = _filtered.Count > 0;
+    }
+
+    private void SelectBook(BookInfo book)
+    {
+        _query = book.Title;
+        _selectedFilename = book.Filename;
+        _showResults = false;
+        _ = OnBookSelected.InvokeAsync(book.Filename);
+    }
+
+    private void ClearSelection()
+    {
+        ClearInternal();
+        _ = OnBookSelected.InvokeAsync(null);
+    }
+
+    private void ClearInternal()
+    {
+        _query = "";
+        _selectedFilename = null;
+        _filtered = [];
+        _showResults = false;
+    }
+
+    private void HandleBlur() => _showResults = false;
+
+    private static string FormatCategory(string category) => category switch
+    {
+        "horus_heresy" => "Horus Heresy",
+        "novella" => "Novella",
+        "short_story" => "Short Story",
+        "anthology" => "Anthology",
+        "codex" => "Codex",
+        _ => "Other"
+    };
+}

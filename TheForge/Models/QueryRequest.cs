@@ -79,3 +79,26 @@ public class Empty
 {
     public string Status { get; set; } = string.Empty;
 }
+
+// ── Book manifest payloads ──────────────────────────────────────────────────
+
+public class BookInfo
+{
+    public string Filename { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string? Author { get; set; }
+    public string? Series { get; set; }
+    public double? BookNumber { get; set; }
+    public string Format { get; set; } = string.Empty;
+    public string Type { get; set; } = string.Empty;
+    public string Universe { get; set; } = string.Empty;
+    public bool IsHorusHeresy { get; set; }
+    public bool IsRulebook { get; set; }
+    public string Category { get; set; } = string.Empty;
+}
+
+public class BookListPayload
+{
+    public int Total { get; set; }
+    public List<BookInfo> Books { get; set; } = [];
+}

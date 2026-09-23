@@ -24,6 +24,9 @@ public class FastApiClient(HttpClient httpClient, ILogger<FastApiClient> logger)
     public Task<QueryResponse> QueryExplorerAsync(QueryRequest request, CancellationToken ct = default) =>
         PostAsync<QueryResponse>("query/explore", request, ct);
 
+    public Task<QueryResponse> QueryFocusAsync(QueryRequest request, CancellationToken ct = default) =>
+        PostAsync<QueryResponse>("query/focus", request, ct);
+
     public IAsyncEnumerable<string> QueryStreamAsync(QueryRequest request, CancellationToken ct = default) =>
         StreamAsync("query/stream", request, ct);
 
@@ -39,32 +42,11 @@ public class FastApiClient(HttpClient httpClient, ILogger<FastApiClient> logger)
     public Task<SourceListPayload> ListSourcesAsync(CancellationToken ct = default) =>
         GetAsync<SourceListPayload>("sources", ct);
 
+    public Task<BookListPayload> GetBooksAsync(CancellationToken ct = default) =>
+        GetAsync<BookListPayload>("books", ct);
+
     public Task<SourceChunksPayload> GetSourceChunksAsync(string sourceName, int limit = 20, CancellationToken ct = default) =>
         GetAsync<SourceChunksPayload>($"sources/{Uri.EscapeDataString(sourceName)}?limit={limit}", ct);
-
-    // GOLD: Context/session memory is intentionally disabled in the pre-Gold build.
-    // public Task<MemoryPayload> GetMemoryAsync(string sessionId, CancellationToken ct = default) =>
-    //     GetAsync<MemoryPayload>($"memory?session_id={Uri.EscapeDataString(sessionId)}", ct);
-    //
-    // public async Task<Empty> ClearMemoryAsync(string sessionId, CancellationToken ct = default)
-    // {
-    //     try
-    //     {
-    //         using var response = await httpClient.DeleteAsync(
-    //             $"memory?session_id={Uri.EscapeDataString(sessionId)}",
-    //             ct);
-    //
-    //         response.EnsureSuccessStatusCode();
-    //
-    //         return await response.Content.ReadFromJsonAsync<Empty>(JsonOptions, ct)
-    //             ?? new Empty { Status = "cleared" };
-    //     }
-    //     catch (HttpRequestException ex)
-    //     {
-    //         logger.LogError(ex, "FastAPI DELETE failed for memory session {SessionId}", sessionId);
-    //         throw;
-    //     }
-    // }
 
     private async Task<T> GetAsync<T>(string path, CancellationToken ct)
     {

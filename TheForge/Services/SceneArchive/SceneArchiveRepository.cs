@@ -72,27 +72,50 @@ public class SceneArchiveRepository(SceneArchiveDbContext db) : ISceneArchiveRep
             ? await db.Scenes.CountAsync(ct)
             : await db.Scenes.CountAsync(s => s.SceneType == sceneType, ct);
 
-    // Widened to search Book.Title and StitchedText as well as scene_name/teaser/chronicle —
-    // a user might search a book name, not just a character. Still only ever the woven scene
-    // bank (scenes + books), never the raw ~498,000-chunk corpus.
+    // Split into individual words instead of treating the whole input as one
+    // literal substring. A single LIKE '%whole sentence%' pattern almost
+    // never matches real prose — "the death of Lucius by sharrowkyn" as one
+    // exact phrase basically never appears verbatim in chronicle text, so
+    // search was silently returning far fewer (often zero) results than it
+    // should for any multi-word, natural-language-style query. Each word now
+    // has to appear SOMEWHERE across the searchable fields (AND across
+    // words, OR across fields per word), so a sentence behaves like a real
+    // search instead of an exact-phrase match. A single name search (the
+    // common case) behaves identically to before. Still only ever the woven
+    // scene bank (scenes + books), never the raw ~498,000-chunk corpus.
     public async Task<List<Scene>> SearchScenesAsync(string query, int take, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(query))
             return [];
 
-        // Escape SQL LIKE wildcards in the user's input so a literal "%" or "_" in a search
-        // term behaves as a literal character instead of a wildcard.
-        var escaped = query.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
-        var pattern = $"%{escaped}%";
+        var terms = query
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(EscapeLikePattern)
+            .Where(t => t.Length > 0)
+            .ToList();
 
-        var matches = db.Scenes.Where(s =>
-            (s.SceneName != null && EF.Functions.Like(s.SceneName, pattern, "\\")) ||
-            (s.Teaser != null && EF.Functions.Like(s.Teaser, pattern, "\\")) ||
-            (s.Chronicle != null && EF.Functions.Like(s.Chronicle, pattern, "\\")) ||
-            (s.StitchedText != null && EF.Functions.Like(s.StitchedText, pattern, "\\")) ||
-            EF.Functions.Like(s.Book.Title, pattern, "\\"));
+        if (terms.Count == 0)
+            return [];
+
+        var matches = db.Scenes.AsQueryable();
+
+        foreach (var term in terms)
+        {
+            var pattern = $"%{term}%";
+            matches = matches.Where(s =>
+                (s.SceneName != null && EF.Functions.Like(s.SceneName, pattern, "\\")) ||
+                (s.Teaser != null && EF.Functions.Like(s.Teaser, pattern, "\\")) ||
+                (s.Chronicle != null && EF.Functions.Like(s.Chronicle, pattern, "\\")) ||
+                (s.StitchedText != null && EF.Functions.Like(s.StitchedText, pattern, "\\")) ||
+                EF.Functions.Like(s.Book.Title, pattern, "\\"));
+        }
 
         matches = ByPriority(matches);
         return await CardProjection(matches).Take(take).ToListAsync(ct);
     }
+
+    // Escapes SQL LIKE wildcards in a single term so a literal "%" or "_" in
+    // the user's input behaves as a literal character instead of a wildcard.
+    private static string EscapeLikePattern(string term) =>
+        term.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
 }

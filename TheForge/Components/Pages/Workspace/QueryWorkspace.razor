@@ -3,6 +3,7 @@
 @rendermode InteractiveServer
 @implements IDisposable
 @using System.Text
+@using TheForge.Models
 @using TheForge.Models.UI
 @using System.Text.Json
 @inject IForgeApiService ForgeApi
@@ -17,22 +18,22 @@
 
         @if (_showOfflineModal)
         {
-            <div class="offline-modal-backdrop" @onclick="() => _showOfflineModal = false">
-                <div class="offline-modal" @onclick:stopPropagation="true">
-                    <p class="offline-modal__title">ARCHIVE OFFLINE</p>
-                    <p class="offline-modal__body">
-                        The Skald link  is down. Access has to  be requested manually.
-                    </p>
-                    <div class="offline-modal__actions">
-                        <a class="request-access-btn" href="@WhatsAppRequestUrl" target="_blank" rel="noopener">
-                            REQUEST ACCESS
-                        </a>
-                        <button type="button" class="offline-modal__dismiss" @onclick="() => _showOfflineModal = false">
-                            DISMISS
-                        </button>
-                    </div>
+        <div class="offline-modal-backdrop" @onclick="() => _showOfflineModal = false">
+            <div class="offline-modal" @onclick:stopPropagation="true">
+                <p class="offline-modal__title">ARCHIVE OFFLINE</p>
+                <p class="offline-modal__body">
+                    The KABAN link  is down. Access has to  be requested manually.
+                </p>
+                <div class="offline-modal__actions">
+                    <a class="request-access-btn" href="@WhatsAppRequestUrl" target="_blank" rel="noopener">
+                        REQUEST ACCESS
+                    </a>
+                    <button type="button" class="offline-modal__dismiss" @onclick="() => _showOfflineModal = false">
+                        DISMISS
+                    </button>
                 </div>
             </div>
+        </div>
         }
 
         <header class="status-bar @(_streamState == StreamState.Streaming ? "status-bar--streaming" : "")">
@@ -52,7 +53,7 @@
                 <div class="brand-panel__identity">
                     <AquilaIcon Size="56" />
                     <div>
-                        <h1>Skald</h1>
+                        The <h1>KABAN PROJECT</h1>
                         <p class="subtitle">Relive the moment, With lore-accurate facts across the entire Warhammer40k universe.</p>
                         <p class="subtitle subtitle--secondary">
                             Great for fandom content creation, or re-reading & going back to a favourite passage without hunting for the exact
@@ -71,6 +72,25 @@
                             Explorer
                         </button>
                     </div>
+
+                    <div class="submode-toggle-wrap @(_mode == WorkspaceMode.Narrator ? "submode-toggle-wrap--visible" : "")">
+                        <div class="submode-toggle @(_subMode == NarratorSubMode.WideNet ? "submode-toggle--wide" : "")">
+                            <div class="submode-toggle__pill" aria-hidden="true"></div>
+                            <button type="button"
+                                    class="submode-toggle__btn @(_subMode == NarratorSubMode.Focus ? "submode-toggle__btn--active" : "")"
+                                    disabled="@(_streamState == StreamState.Streaming)"
+                                    @onclick="() => SetSubMode(NarratorSubMode.Focus)">
+                                FOCUS
+                            </button>
+                            <button type="button"
+                                    class="submode-toggle__btn @(_subMode == NarratorSubMode.WideNet ? "submode-toggle__btn--active" : "")"
+                                    disabled="@(_streamState == StreamState.Streaming)"
+                                    @onclick="() => SetSubMode(NarratorSubMode.WideNet)">
+                                WIDE NET
+                            </button>
+                        </div>
+                    </div>
+
                     <p class="mode-caption">@ModeCaptionText</p>
                 </div>
             </section>
@@ -87,36 +107,31 @@
                 <div class="chip-row" role="group" aria-label="Example queries">
                     @foreach (var chip in ActiveChips)
                     {
-                        <button type="button"
-                                class="chip"
-                                disabled="@(_streamState == StreamState.Streaming)"
-                                @onclick="() => FillQuery(chip)">
-                            "@chip"
-                        </button>
+                    <button type="button"
+                            class="chip"
+                            disabled="@(_streamState == StreamState.Streaming)"
+                            @onclick="() => FillQuery(chip)">
+                        "@chip"
+                    </button>
                     }
                 </div>
 
+                @if (_mode == WorkspaceMode.Narrator)
+                {
                 <div class="filter-row">
-                    <label for="book-filter">BOOK FILTER</label>
-                    <div class="filter-input-wrap">
-                        <svg class="filter-input__icon" viewBox="0 0 24 24" stroke-width="1.6" aria-hidden="true"><path d="M4 4h4v16H4zM10 4h4v16h-4zM16 5l4-1v16l-4 1z"/></svg>
-                        <input id="book-filter"
-                               class="filter-input"
-                               list="book-filter-options"
-                               placeholder="@BookFilterPlaceholder"
-                               @bind="_bookFilter"
-                               @bind:event="oninput" />
-                        <datalist id="book-filter-options">
-                            @if (_sourceList is not null)
-                            {
-                                @foreach (var source in _sourceList.Sources)
-                                {
-                                    <option value="@source"></option>
-                                }
-                            }
-                        </datalist>
-                    </div>
+                    <label>BOOK FILTER</label>
+                    <BookTypehead Books="_books"
+                                   Disabled="@(_streamState == StreamState.Streaming)"
+                                   Placeholder="@BookFilterPlaceholder"
+                                   ExternalClearSignal="_bookClearSignal"
+                                   OnBookSelected="OnBookSelected" />
                 </div>
+
+                @* <MultiSourceSelect AllSources="@(_sourceList?.Sources ?? [])" *@
+                @*                     Selected="_selectedSources" *@
+                @*                     Disabled="@(_streamState == StreamState.Streaming)" *@
+                @*                     SelectedChanged="@OnSourcesChanged" /> *@
+                }
 
                 <div class="query-actions">
                     <button type="button" class="submit-btn" disabled="@SubmitDisabled" @onclick="HandleSubmit">
@@ -124,542 +139,618 @@
                     </button>
                     @if (_streamState == StreamState.Streaming)
                     {
-                        <button type="button" class="stop-btn" @onclick="StopStream">STOP</button>
+                    <button type="button" class="stop-btn" @onclick="StopStream">STOP</button>
                     }
                 </div>
 
                 @if (!string.IsNullOrWhiteSpace(_errorMessage))
                 {
-                    <p class="error-message">@_errorMessage</p>
+                <p class="error-message">@_errorMessage</p>
                 }
             </section>
 
-            @if (_streamState == StreamState.Streaming && _mode == WorkspaceMode.Narrator)
+            @if (_streamState == StreamState.Streaming && _mode == WorkspaceMode.Narrator && _subMode == NarratorSubMode.WideNet)
             {
-                <div class="pipeline-progress" aria-live="polite">
-                    <AquilaIcon Size="44" Spinning="true" />
+            <div class="pipeline-progress" aria-live="polite">
+                <AquilaIcon Size="44" Spinning="true" />
 
-                    <div class="pipeline-progress__body">
-                        <div class="pipeline-progress__track">
-                            <div class="pipeline-progress__fill" style="width:@(_stage.ProgressPercent())%"></div>
-                        </div>
-                        <div class="pipeline-progress__label">
-                            <span class="pipeline-progress__text">@_stage.Label()</span>
-                            <span class="pipeline-progress__pct">@_stage.ProgressPercent()%</span>
-                        </div>
+                <div class="pipeline-progress__body">
+                    <div class="pipeline-progress__track">
+                        <div class="pipeline-progress__fill" style="width:@(_stage.ProgressPercent())%"></div>
+                    </div>
+                    <div class="pipeline-progress__label">
+                        <span class="pipeline-progress__text">@_stage.Label()</span>
+                        <span class="pipeline-progress__pct">@_stage.ProgressPercent()%</span>
                     </div>
                 </div>
+            </div>
             }
 
-            @if (_mode == WorkspaceMode.Explorer && _streamState == StreamState.Streaming)
+            @if (_streamState == StreamState.Streaming &&
+            (_mode == WorkspaceMode.Explorer || (_mode == WorkspaceMode.Narrator && _subMode == NarratorSubMode.Focus)))
             {
-                <div class="scan-loading" aria-hidden="true">
-                    <div class="scan-loading__bar"></div>
-                </div>
+            <div class="scan-loading" aria-hidden="true">
+                <div class="scan-loading__bar"></div>
+            </div>
             }
 
             <section class="@ResponsePanelClass">
                 @switch (_streamState)
                 {
-                    case StreamState.Idle:
-                        <div class="idle-state">
-                            <span class="idle-text">@IdleText</span><span class="idle-cursor" aria-hidden="true"></span>
-                        </div>
-                        break;
-                    case StreamState.Streaming:
-                        <pre class="response-text">@_responseText@if (_mode == WorkspaceMode.Narrator)
-                            {
-                                <span class="cursor" aria-hidden="true"></span>
-                            }</pre>
-                        break;
-                    case StreamState.Complete:
-                        if (IsEmptyResult)
-                        {
-                            <div class="empty-state">
-                                <p class="empty-state__headline">No records found</p>
-                                <p class="empty-state__hint">
-                                    @(string.IsNullOrWhiteSpace(_bookFilter)
-                                        ? "Try rephrasing your query."
-                                        : "Try removing the book filter or rephrasing your query.")
-                                </p>
-                            </div>
-                        }
-                        else if (_mode == WorkspaceMode.Explorer && _explorerSections.Count > 0)
-                        {
-                            foreach (var sectionz in _explorerSections)
-                            {
-                                <article class="explorer-section">
-                                    <p>@sectionz</p>
-                                </article>
-                            }
-                        }
-                        else
-                        {
-                            <pre class="response-text">@_responseText<span class="complete-mark" aria-hidden="true">■</span></pre>
-                        }
-                        break;
-                    case StreamState.Error:
-                        <p class="response-error">@_errorMessage</p>
-                        break;
-                    case StreamState.Cancelled:
-                        <pre class="response-text">@_responseText <span class="interrupted">[STREAM INTERRUPTED]</span></pre>
-                        break;
+                case StreamState.Idle:
+                <div class="idle-state">
+                    <span class="idle-text">@IdleText</span><span class="idle-cursor" aria-hidden="true"></span>
+                </div>
+                break;
+                case StreamState.Streaming:
+                <pre class="response-text">@_responseText@if (_mode == WorkspaceMode.Narrator && _subMode == NarratorSubMode.WideNet)
+                    {
+                    <span class="cursor" aria-hidden="true"></span>
+                    }</pre>
+                break;
+                case StreamState.Complete:
+                if (IsEmptyResult)
+                {
+                <div class="empty-state">
+                    <p class="empty-state__headline">No records found</p>
+                    <p class="empty-state__hint">
+                        @(HasAnyFilter
+                        ? "Try removing the book/source filter or rephrasing your query."
+                        : "Try rephrasing your query.")
+                    </p>
+                </div>
+                }
+                else if (_mode == WorkspaceMode.Explorer && _explorerSections.Count > 0)
+                {
+                foreach (var sectionz in _explorerSections)
+                {
+                <article class="explorer-section">
+                    <p>@sectionz</p>
+                </article>
+                }
+                }
+                else
+                {
+                <pre class="response-text">@_responseText<span class="complete-mark" aria-hidden="true">■</span></pre>
+                }
+                break;
+                case StreamState.Error:
+                <p class="response-error">@_errorMessage</p>
+                break;
+                case StreamState.Cancelled:
+                <pre class="response-text">@_responseText <span class="interrupted">[STREAM INTERRUPTED]</span></pre>
+                break;
                 }
             </section>
 
             @if (_sourcesVisible)
             {
-                <section class="sources-panel">
-                    <div class="sources-header">
-                        <span>SOURCES</span>
-                        <span class="source-count">@_sources.Count</span>
-                    </div>
-                    <div class="source-list">
-                        @foreach (var source in _sources)
+            <section class="sources-panel">
+                <div class="sources-header">
+                    <span>SOURCES</span>
+                    <span class="source-count">@_sources.Count</span>
+                </div>
+                <div class="source-list">
+                    @foreach (var source in _sources)
+                    {
+                    <article class="source-card">
+                        <strong>@SourceDisplayName(source)</strong>
+                        @if (!string.IsNullOrWhiteSpace(source.Chapter) &&
+                        !source.Chapter.Equals("unknown", StringComparison.OrdinalIgnoreCase))
                         {
-                            <article class="source-card">
-                                <strong>@SourceDisplayName(source)</strong>
-                                @if (!string.IsNullOrWhiteSpace(source.Chapter) &&
-                                     !source.Chapter.Equals("unknown", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    <span>Chapter @source.Chapter</span>
-                                }
-                                @if (!string.IsNullOrWhiteSpace(source.StitchRange))
-                                {
-                                    <span>Chunks @source.StitchRange</span>
-                                }
-                                <div class="confidence-bar" aria-label="Source confidence">
-                                    <div class="confidence-fill" style="width: @ConfidenceWidth(source.Score)"></div>
-                                </div>
-                            </article>
+                        <span>Chapter @source.Chapter</span>
                         }
-                    </div>
-                </section>
+                        @if (!string.IsNullOrWhiteSpace(source.StitchRange))
+                        {
+                        <span>Chunks @source.StitchRange</span>
+                        }
+                        <div class="confidence-bar" aria-label="Source confidence">
+                            <div class="confidence-fill" style="width: @ConfidenceWidth(source.Score)"></div>
+                        </div>
+                    </article>
+                    }
+                </div>
+            </section>
             }
         </main>
     </div>
 </ErrorBoundary>
 
 @code {
-    private WorkspaceMode _mode = WorkspaceMode.Narrator;
-    private string _queryText = "";
-    private string _bookFilter = "";
-    private string? _errorMessage;
-    private StreamState _streamState = StreamState.Idle;
-    private readonly StringBuilder _responseBuffer = new();
-    private string _responseText = "";
-    private CancellationTokenSource? _cts;
-    private List<SourceInfo> _sources = [];
-    private bool _sourcesVisible;
-    private QueryStage _stage = QueryStage.Idle;
-    private HealthPayload? _health;
-    private bool _healthLoaded;
-    private SourceListPayload? _sourceList;
-    private bool _sourcesLoaded;
-    private List<string> _explorerSections = [];
-    private bool _showOfflineModal;
-    private string[] _narratorActiveChips = [];
-    private string[] _explorerActiveChips = [];
+private WorkspaceMode _mode = WorkspaceMode.Explorer;
+private NarratorSubMode _subMode = NarratorSubMode.Focus;
+private string _queryText = "";
+private string? _errorMessage;
+private StreamState _streamState = StreamState.Idle;
+private readonly StringBuilder _responseBuffer = new();
+private string _responseText = "";
+private CancellationTokenSource? _cts;
+private List<SourceInfo> _sources = [];
+private bool _sourcesVisible;
+private QueryStage _stage = QueryStage.Idle;
+private HealthPayload? _health;
+private bool _healthLoaded;
+private SourceListPayload? _sourceList;
+private bool _sourcesLoaded;
+private List<string> _explorerSections = [];
+private bool _showOfflineModal;
+private string[] _narratorActiveChips = [];
+private string[] _explorerActiveChips = [];
 
-    private const string RetrievalStrategyText = "Retreival:BM25+Vector";
+// Book filter / source filter state — mutually exclusive by default (see
+// OnBookSelected / OnSourcesChanged): picking one clears the other so a
+// user can't accidentally AND a loose net (book) with a tight one (sources)
+// without realizing it. _bookClearSignal flips to a fresh non-null value
+// to force BookTypeahead to clear itself from the parent side.
+private List<BookInfo> _books = [];
+private bool _booksLoaded;
+private string? _selectedBookFilename;
+private List<string> _selectedSources = [];
+private string? _bookClearSignal;
 
-    // TODO: replace with your real WhatsApp number (digits only, country code, no + or spaces)
-    // and whatever message you want pre-filled when someone taps "REQUEST ACCESS".
-    private const string WhatsAppNumber = "+2347055260700";
-    private const string WhatsAppMessage = "Hi, requesting access to The Cogitator .";
+private const string RetrievalStrategyText = "Retreival:BM25+Vector";
 
-    private string WhatsAppRequestUrl =>
-        $"https://wa.me/{WhatsAppNumber}?text={Uri.EscapeDataString(WhatsAppMessage)}";
+// TODO: replace with your real WhatsApp number (digits only, country code, no + or spaces)
+// and whatever message you want pre-filled when someone taps "REQUEST ACCESS".
+private const string WhatsAppNumber = "+2347055260700";
+private const string WhatsAppMessage = "Hi, requesting access to The Cogitator .";
 
-    // 20-entry pools per mode. Narrator prompts are "tell me the story of..." style —
-    // no book name needed. Explorer prompts are entity/topic names for raw ranked scenes.
-    // Verify these against your own /explore endpoint before treating the list as final;
-    // Claude has no visibility into which of your 340 indexed books actually cover each beat.
-    private static readonly string[] NarratorPromptPool =
-    [
-    
-   
-        "Fulgrim's sensations as the daemon in the blade took hold while dueling his brother Ferrus Manus",
-     
-        "Leman Russ fights Magnus on prospero",
- 
-        "emperor's children Kakophoni use sonic weapon against white scars",
-        "the destruction of Prospero",
-        "Lorgar transforming angron as he fights gulliman on nuceria",
-         "the World Eaters' massacre at Nuceria",
-        "Magnus crashes wards on the imperial palace "
-    ];
+private string WhatsAppRequestUrl =>
+$"https://wa.me/{WhatsAppNumber}?text={Uri.EscapeDataString(WhatsAppMessage)}";
 
-    private static readonly string[] ExplorerPromptPool =
-    [
-       
-   "why did horus turn traitor"
-    ];
+private static readonly string[] NarratorPromptPool =
+[
+"Fulgrim's sensations as the daemon in the blade took hold while dueling his brother Ferrus Manus",
+"Leman Russ fights Magnus on prospero",
+"emperor's children Kakophoni use sonic weapon against white scars",
+"the destruction of Prospero",
+"Lorgar transforming angron as he fights gulliman on nuceria",
+"the World Eaters' massacre at Nuceria",
+"Magnus crashes wards on the imperial palace "
+];
 
-    private string[] ActiveChips => _mode == WorkspaceMode.Explorer ? _explorerActiveChips : _narratorActiveChips;
+private static readonly string[] ExplorerPromptPool =
+[
+"why did horus turn traitor"
+];
 
-    private bool SubmitDisabled => string.IsNullOrWhiteSpace(_queryText) || _streamState == StreamState.Streaming;
-    private bool IsHealthOnline => _health is not null && !string.Equals(_health.Status, "error", StringComparison.OrdinalIgnoreCase);
+private string[] ActiveChips => _mode == WorkspaceMode.Explorer ? _explorerActiveChips : _narratorActiveChips;
 
-    // Falls back to whatever the backend actually reports, so this never drifts
-    // out of sync with a third health value (e.g. "degraded") the backend adds later.
-    private string HealthStatusLabel => _health?.Status?.ToUpperInvariant() switch
-    {
-        null => "OFFLINE",
-        "OK" or "HEALTHY" => "ONLINE",
-        "ERROR" => "OFFLINE",
-        var other => other
-    };
+private bool SubmitDisabled => string.IsNullOrWhiteSpace(_queryText) || _streamState == StreamState.Streaming;
+private bool IsHealthOnline => _health is not null && !string.Equals(_health.Status, "error", StringComparison.OrdinalIgnoreCase);
 
-    private string HealthModelText => string.IsNullOrWhiteSpace(_health?.OllamaModel) ? "" : _health.OllamaModel;
+private string HealthStatusLabel => _health?.Status?.ToUpperInvariant() switch
+{
+null => "OFFLINE",
+"OK" or "HEALTHY" => "ONLINE",
+"ERROR" => "OFFLINE",
+var other => other
+};
 
-    // Only ever shows a real number or a plain, honest "loading" word — never a bare "--".
-    private string? ChunkCountDisplay => _healthLoaded && _health?.MetadataLoaded is > 0
-        ? _health.MetadataLoaded.ToString("N0")
-        : null;
-    private string ChunkText => ChunkCountDisplay is null ? "CHUNKS —" : $"{ChunkCountDisplay} CHUNKS";
+private string HealthModelText => string.IsNullOrWhiteSpace(_health?.OllamaModel) ? "" : _health.OllamaModel;
 
-    // Total falls back to the raw source-list length in case the backend ever
-    // returns Total=0 for an unpaginated/short list rather than omitting it.
-    private int? BookCount => _sourcesLoaded && _sourceList is not null
-        ? (_sourceList.Total > 0 ? _sourceList.Total : _sourceList.Sources.Count)
-        : null;
-    private string BookCountText => BookCount is > 0 ? $"{BookCount:N0} BOOKS" : "BOOKS —";
+private string? ChunkCountDisplay => _healthLoaded && _health?.MetadataLoaded is > 0
+? _health.MetadataLoaded.ToString("N0")
+: null;
+private string ChunkText => ChunkCountDisplay is null ? "CHUNKS —" : $"{ChunkCountDisplay} CHUNKS";
 
-    private string BookFilterPlaceholder => ChunkCountDisplay is null
-        ? "Optional source title"
-        : $"Narrows the {ChunkCountDisplay}-chunk pool to one book";
+// Prefer the canonical manifest count (accurate, per system_routes.py's own
+// docstring) over /sources, which inflates via cross-format duplicates.
+private int? BookCount => _booksLoaded && _books.Count > 0
+? _books.Count
+: (_sourcesLoaded && _sourceList is not null
+    ? (_sourceList.Total > 0 ? _sourceList.Total : _sourceList.Sources.Count)
+    : null);
+private string BookCountText => BookCount is > 0 ? $"{BookCount:N0} BOOKS" : "BOOKS —";
 
-    private string ModeLabelText => _mode == WorkspaceMode.Explorer ? "EXPLORER" : "NARRATOR";
-    private string ModeCaptionText => "Narrator answers in prose with citations. Explorer returns raw ranked scenes.";
+private string BookFilterPlaceholder => ChunkCountDisplay is null
+? "Optional source title"
+: $"Narrows the {ChunkCountDisplay}-chunk pool to one book";
 
-    private string SubmitLabel => (_mode, _streamState) switch
-    {
-        (WorkspaceMode.Explorer, StreamState.Streaming) => "ANALYSING…",
-        (WorkspaceMode.Explorer, _) => "ANALYSE",
-        (_, StreamState.Streaming) => "CHRONICLING…",
-        _ => "CHRONICLE"
-    };
+private bool HasAnyFilter => !string.IsNullOrWhiteSpace(_selectedBookFilename) || _selectedSources.Count > 0;
 
-    private string IdleText => _mode == WorkspaceMode.Explorer ? "Input a designation for analysis..." : "The archive awaits your query...";
+private string ModeLabelText => _mode switch
+{
+WorkspaceMode.Explorer => "EXPLORER",
+_ => _subMode == NarratorSubMode.Focus ? "NARRATOR · FOCUS" : "NARRATOR · WIDE NET"
+};
 
-    private bool IsEmptyResult => _streamState == StreamState.Complete
-        && string.IsNullOrWhiteSpace(_responseText)
-        && (_mode != WorkspaceMode.Explorer || _sources.Count == 0);
+private string ModeCaptionText => _mode switch
+{
+WorkspaceMode.Explorer => "Explorer returns raw ranked scenes.",
+_ when _subMode == NarratorSubMode.Focus =>
+"Focus narrows to the top sources — fast, accuracy-first, no streaming.",
+_ => "Wide Net pools across the full corpus — broader, slower, streamed live."
+};
 
-    private string ResponsePanelClass => _mode == WorkspaceMode.Explorer
-        ? "response-panel response-panel--explorer"
-        : "response-panel response-panel--narrator";
+private string SubmitLabel => (_mode, _streamState) switch
+{
+(WorkspaceMode.Explorer, StreamState.Streaming) => "ANALYSING…",
+(WorkspaceMode.Explorer, _) => "ANALYSE",
+(_, StreamState.Streaming) => "CHRONICLING…",
+_ => "CHRONICLE"
+};
 
-    private string QueryPlaceholder => _mode == WorkspaceMode.Explorer
-        ? "Try: \"What Corrupted the emperors children\" or \"Why Did Horus Turn traitor\""
-        : "Horus Virus Bombs the Loyalists";
+private string IdleText => _mode == WorkspaceMode.Explorer ? "Input a designation for analysis..." : "The archive awaits your query...";
 
-    protected override async Task OnInitializedAsync()
-    {
-        ThemeService.ApplyModeTheme(_mode);
-        _narratorActiveChips = PickThree(NarratorPromptPool);
-        _explorerActiveChips = PickThree(ExplorerPromptPool);
-        await Task.WhenAll(LoadHealthAsync(), LoadSourcesAsync());
-    }
+private bool IsEmptyResult => _streamState == StreamState.Complete
+&& string.IsNullOrWhiteSpace(_responseText)
+&& (_mode != WorkspaceMode.Explorer || _sources.Count == 0);
 
-    // Random-without-replacement pick of 3, so the chip row never shows a duplicate.
-    private static string[] PickThree(string[] pool)
-    {
-        return pool.OrderBy(_ => Random.Shared.Next()).Take(3).ToArray();
-    }
+private string ResponsePanelClass => _mode == WorkspaceMode.Explorer
+? "response-panel response-panel--explorer"
+: "response-panel response-panel--narrator";
 
-    private async Task LoadHealthAsync()
-    {
-        _health = await ForgeApi.GetHealthAsync();
-        _healthLoaded = true;
-    }
+private string QueryPlaceholder => _mode == WorkspaceMode.Explorer
+? "Try: \"What Corrupted the emperors children\" or \"Why Did Horus Turn traitor\""
+: "Horus Virus Bombs the Loyalists";
 
-    private async Task LoadSourcesAsync()
-    {
-        _sourceList = await ForgeApi.GetSourcesAsync();
-        _sourcesLoaded = true;
-    }
+protected override async Task OnInitializedAsync()
+{
+ThemeService.ApplyModeTheme(_mode);
+_narratorActiveChips = PickThree(NarratorPromptPool);
+_explorerActiveChips = PickThree(ExplorerPromptPool);
+await Task.WhenAll(LoadHealthAsync(), LoadSourcesAsync(), LoadBooksAsync());
+}
 
-    private void SetMode(WorkspaceMode mode)
-    {
-        if (_streamState == StreamState.Streaming)
-        {
-            return;
-        }
+private static string[] PickThree(string[] pool)
+{
+return pool.OrderBy(_ => Random.Shared.Next()).Take(3).ToArray();
+}
 
-        _mode = mode;
-        ThemeService.ApplyModeTheme(_mode);
-        ResetResponseState();
-    }
+private async Task LoadHealthAsync()
+{
+_health = await ForgeApi.GetHealthAsync();
+_healthLoaded = true;
+}
 
-    private string ModeButtonClass(WorkspaceMode mode)
-    {
-        return _mode == mode ? "mode-btn mode-btn--active" : "mode-btn mode-btn--inactive";
-    }
+private async Task LoadSourcesAsync()
+{
+_sourceList = await ForgeApi.GetSourcesAsync();
+_sourcesLoaded = true;
+}
 
-    private void FillQuery(string text)
-    {
-        if (_streamState == StreamState.Streaming)
-        {
-            return;
-        }
+private async Task LoadBooksAsync()
+{
+var payload = await ForgeApi.GetBooksAsync();
+_books = payload?.Books ?? [];
+_booksLoaded = true;
+}
 
-        _queryText = text;
-    }
+private void SetMode(WorkspaceMode mode)
+{
+if (_streamState == StreamState.Streaming)
+{
+return;
+}
 
-    private async Task HandleSubmit()
-    {
-        if (SubmitDisabled)
-        {
-            return;
-        }
+_mode = mode;
+ThemeService.ApplyModeTheme(_mode);
+ResetResponseState();
+}
 
-        // Checked here rather than at page load: firing this on every visit would be
-        // noisy if the backend blips for a second. Only surface it when someone is
-        // actually blocked from doing something, i.e. right when they try to submit.
-        if (!IsHealthOnline)
-        {
-            _showOfflineModal = true;
-            return;
-        }
+private void SetSubMode(NarratorSubMode subMode)
+{
+if (_streamState == StreamState.Streaming)
+{
+return;
+}
 
-        ResetResponseState();
-        var request = BuildQueryRequest();
+_subMode = subMode;
+ResetResponseState();
+}
 
-        if (_mode == WorkspaceMode.Explorer)
-        {
-            await HandleExplorerQuery(request);
-            return;
-        }
+private string ModeButtonClass(WorkspaceMode mode)
+{
+return _mode == mode ? "mode-btn mode-btn--active" : "mode-btn mode-btn--inactive";
+}
 
-        await HandleNarratorStream(request);
-    }
+private void FillQuery(string text)
+{
+if (_streamState == StreamState.Streaming)
+{
+return;
+}
 
-    private QueryRequest BuildQueryRequest()
-    {
-        return new QueryRequest
-        {
-            Query = _queryText.Trim(),
-            BookFilter = string.IsNullOrWhiteSpace(_bookFilter) ? null : _bookFilter.Trim()
-        };
-    }
+_queryText = text;
+}
 
-    private void AppendStreamChunk(string chunk)
-    {
-        if (string.IsNullOrEmpty(chunk))
-        {
-            return;
-        }
+// Mutually exclusive filters: picking a book clears any selected sources;
+// picking a source clears the selected book (and signals BookTypeahead to
+// visually reset itself, since it owns its own display text internally).
+private void OnBookSelected(string? filename)
+{
+_selectedBookFilename = filename;
+if (filename is not null && _selectedSources.Count > 0)
+{
+_selectedSources = [];
+}
+}
 
-        // No manual space-guessing needed anymore — the token itself already
-        // carries its own leading space when the model intends a new word,
-        // because HandleNarratorStream no longer strips it. Just append raw.
-        _responseBuffer.Append(chunk);
-    }
+private void OnSourcesChanged(List<string> sources)
+{
+_selectedSources = sources;
+if (sources.Count > 0 && _selectedBookFilename is not null)
+{
+_selectedBookFilename = null;
+_bookClearSignal = Guid.NewGuid().ToString();
+}
+}
 
-    private async Task HandleNarratorStream(QueryRequest request)
-    {
-        _cts = new CancellationTokenSource();
-        _streamState = StreamState.Streaming;
+private async Task HandleSubmit()
+{
+if (SubmitDisabled)
+{
+return;
+}
 
-        try
-        {
-            using var response = await ForgeApi.BeginNarrateStreamAsync(request, _cts.Token);
-            if (!response.IsSuccessStatusCode)
-            {
-                _errorMessage = await response.Content.ReadAsStringAsync(_cts.Token);
-                _streamState = StreamState.Error;
-                return;
-            }
+if (!IsHealthOnline)
+{
+_showOfflineModal = true;
+return;
+}
 
-            await using var stream = await response.Content.ReadAsStreamAsync(_cts.Token);
-            using var reader = new StreamReader(stream);
+ResetResponseState();
+var request = BuildQueryRequest();
 
-            while (!_cts.Token.IsCancellationRequested)
-            {
-                var line = await reader.ReadLineAsync(_cts.Token);
-                if (line is null)
-                {
-                    break;
-                }
+if (_mode == WorkspaceMode.Explorer)
+{
+await HandleExplorerQuery(request);
+return;
+}
 
-                if (!line.StartsWith("data:", StringComparison.Ordinal))
-                {
-                    continue;
-                }
+if (_subMode == NarratorSubMode.Focus)
+{
+await HandleFocusQuery(request);
+}
+else
+{
+await HandleNarratorStream(request);
+}
+}
 
-                // Strip only the single space the SSE framing convention adds right
-                // after "data:" (data:<space><token>) — NOT a full .Trim(). The
-                // model's tokenizer uses a leading space ON THE TOKEN ITSELF to mean
-                // "this starts a new word." A previous .Trim() here destroyed that
-                // signal, so every token looked the same whether or not it was meant
-                // to attach to the previous word — that's what caused "Kh arn"
-                // instead of "Kharn".
-                var data = line["data:".Length..];
-                if (data.StartsWith(' '))
-                {
-                    data = data[1..];
-                }
+private QueryRequest BuildQueryRequest()
+{
+return new QueryRequest
+{
+Query = _queryText.Trim(),
+BookFilter = _mode == WorkspaceMode.Narrator ? _selectedBookFilename : null,
+SourceFilter = _mode == WorkspaceMode.Narrator && _selectedSources.Count > 0 ? _selectedSources : null
+};
+}
 
-                // Control frames ([DONE], [ERROR], __STAGE__, __SOURCES__) are exact
-                // sentinel strings, not narrative text — safe to compare against a
-                // separately trimmed copy without losing anything meaningful.
-                var trimmedData = data.Trim();
+private void AppendStreamChunk(string chunk)
+{
+if (string.IsNullOrEmpty(chunk))
+{
+return;
+}
 
-                if (trimmedData == "[DONE]")
-                {
-                    _streamState = StreamState.Complete;
-                    _stage = QueryStage.Complete;
-                    break;
-                }
+_responseBuffer.Append(chunk);
+}
 
-                if (trimmedData.StartsWith("[ERROR]", StringComparison.Ordinal))
-                {
-                    _errorMessage = trimmedData["[ERROR]".Length..].Trim();
-                    _streamState = StreamState.Error;
-                    _stage = QueryStage.Error;
-                    break;
-                }
+private async Task HandleNarratorStream(QueryRequest request)
+{
+_cts = new CancellationTokenSource();
+_streamState = StreamState.Streaming;
 
-                if (trimmedData.StartsWith("__STAGE__:", StringComparison.Ordinal))
-                {
-                    _stage = QueryStageExtensions.Parse(trimmedData["__STAGE__:".Length..]);
-                }
-                else if (trimmedData.StartsWith("__SOURCES__:", StringComparison.Ordinal))
-                {
-                    ParseSourcesFrame(trimmedData);
-                }
-                else
-                {
-                    // Raw, untrimmed data — preserves the tokenizer's own
-                    // word-boundary spacing exactly as the model intended it.
-                    AppendStreamChunk(data);
-                    _responseText = _responseBuffer.ToString();
-                }
-                await InvokeAsync(StateHasChanged);
-            }
+try
+{
+using var response = await ForgeApi.BeginNarrateStreamAsync(request, _cts.Token);
+if (!response.IsSuccessStatusCode)
+{
+_errorMessage = await response.Content.ReadAsStringAsync(_cts.Token);
+_streamState = StreamState.Error;
+return;
+}
 
-            if (_cts.Token.IsCancellationRequested && _streamState == StreamState.Streaming)
-            {
-                _streamState = StreamState.Cancelled;
-            }
-            else if (_streamState == StreamState.Streaming)
-            {
-                _streamState = StreamState.Complete;
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            _streamState = StreamState.Cancelled;
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Narrator stream failed.");
-            _errorMessage = "The archive stream failed before completion.";
-            _streamState = StreamState.Error;
-        }
-        finally
-        {
-            _cts?.Dispose();
-            _cts = null;
-            await InvokeAsync(StateHasChanged);
-        }
-    }
+await using var stream = await response.Content.ReadAsStreamAsync(_cts.Token);
+using var reader = new StreamReader(stream);
 
-    private async Task HandleExplorerQuery(QueryRequest request)
-    {
-        _streamState = StreamState.Streaming;
+while (!_cts.Token.IsCancellationRequested)
+{
+var line = await reader.ReadLineAsync(_cts.Token);
+if (line is null)
+{
+break;
+}
 
-        try
-        {
-            var result = await ForgeApi.QueryExploreAsync(request);
-            if (result is null)
-            {
-                _errorMessage = "Analysis failed. The archive returned no data.";
-                _streamState = StreamState.Error;
-                return;
-            }
+if (!line.StartsWith("data:", StringComparison.Ordinal))
+{
+continue;
+}
 
-            _responseText = result.Response;
-            _responseBuffer.Append(result.Response);
-            _sources = result.Sources;
-            _sourcesVisible = _sources.Count > 0;
-            ParseExplorerSections();
-            _streamState = StreamState.Complete;
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Explorer query failed.");
-            _errorMessage = "Explorer analysis failed.";
-            _streamState = StreamState.Error;
-        }
-        finally
-        {
-            await InvokeAsync(StateHasChanged);
-        }
-    }
+var data = line["data:".Length..];
+if (data.StartsWith(' '))
+{
+data = data[1..];
+}
 
-    private void StopStream()
-    {
-        _cts?.Cancel();
-    }
+var trimmedData = data.Trim();
 
-    private void NavigateToSceneArchive()
-    {
-        Nav.NavigateTo("/archive");
-    }
+if (trimmedData == "[DONE]")
+{
+_streamState = StreamState.Complete;
+_stage = QueryStage.Complete;
+break;
+}
 
-    private void ParseSourcesFrame(string data)
-    {
-        var json = data["__SOURCES__:".Length..];
-        try
-        {
-            _sources = JsonSerializer.Deserialize<List<SourceInfo>>(json, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            }) ?? [];
-            _sourcesVisible = _sources.Count > 0;
-        }
-        catch (JsonException ex)
-        {
-            Logger.LogWarning(ex, "Malformed source frame ignored.");
-        }
-    }
+if (trimmedData.StartsWith("[ERROR]", StringComparison.Ordinal))
+{
+_errorMessage = trimmedData["[ERROR]".Length..].Trim();
+_streamState = StreamState.Error;
+_stage = QueryStage.Error;
+break;
+}
 
-    private void ParseExplorerSections()
-    {
-        _explorerSections = _responseText
-            .Split("\n\n", StringSplitOptions.RemoveEmptyEntries)
-            .Select(section => section.Trim())
-            .Where(section => section.Length > 0)
-            .ToList();
-    }
-    private void ResetResponseState()
-    {
-        _responseBuffer.Clear();
-        _responseText = "";
-        _sources.Clear();
-        _sourcesVisible = false;
-        _explorerSections.Clear();
-        _errorMessage = null;
-        _streamState = StreamState.Idle;
-        _stage = QueryStage.Idle;
-    } 
+if (trimmedData.StartsWith("__STAGE__:", StringComparison.Ordinal))
+{
+_stage = QueryStageExtensions.Parse(trimmedData["__STAGE__:".Length..]);
+}
+else if (trimmedData.StartsWith("__SOURCES__:", StringComparison.Ordinal))
+{
+ParseSourcesFrame(trimmedData);
+}
+else
+{
+AppendStreamChunk(data);
+_responseText = _responseBuffer.ToString();
+}
+await InvokeAsync(StateHasChanged);
+}
 
-    private static string SourceDisplayName(SourceInfo source)
-    {
-        return string.IsNullOrWhiteSpace(source.Source) ? "Unknown source" : Path.GetFileName(source.Source);
-    }
+if (_cts.Token.IsCancellationRequested && _streamState == StreamState.Streaming)
+{
+_streamState = StreamState.Cancelled;
+}
+else if (_streamState == StreamState.Streaming)
+{
+_streamState = StreamState.Complete;
+}
+}
+catch (OperationCanceledException)
+{
+_streamState = StreamState.Cancelled;
+}
+catch (Exception ex)
+{
+Logger.LogError(ex, "Narrator stream failed.");
+_errorMessage = "The archive stream failed before completion.";
+_streamState = StreamState.Error;
+}
+finally
+{
+_cts?.Dispose();
+_cts = null;
+await InvokeAsync(StateHasChanged);
+}
+}
 
-    private static string ConfidenceWidth(double score)
-    {
-        return $"{Math.Clamp(score * 100, 0, 100):0}%";
-    }
+private async Task HandleFocusQuery(QueryRequest request)
+{
+_streamState = StreamState.Streaming;
 
-    public void Dispose()
-    {
-        _cts?.Cancel();
-        _cts?.Dispose();
-    }
+try
+{
+var result = await ForgeApi.QueryFocusAsync(request);
+if (result is null)
+{
+_errorMessage = "Focus query failed. The archive returned no data.";
+_streamState = StreamState.Error;
+return;
+}
+
+_responseText = result.Response;
+_responseBuffer.Append(result.Response);
+_sources = result.Sources;
+_sourcesVisible = _sources.Count > 0;
+_streamState = StreamState.Complete;
+}
+catch (Exception ex)
+{
+Logger.LogError(ex, "Focus query failed.");
+_errorMessage = "Focus query failed.";
+_streamState = StreamState.Error;
+}
+finally
+{
+await InvokeAsync(StateHasChanged);
+}
+}
+
+private async Task HandleExplorerQuery(QueryRequest request)
+{
+_streamState = StreamState.Streaming;
+
+try
+{
+var result = await ForgeApi.QueryExploreAsync(request);
+if (result is null)
+{
+_errorMessage = "Analysis failed. The archive returned no data.";
+_streamState = StreamState.Error;
+return;
+}
+
+_responseText = result.Response;
+_responseBuffer.Append(result.Response);
+_sources = result.Sources;
+_sourcesVisible = _sources.Count > 0;
+ParseExplorerSections();
+_streamState = StreamState.Complete;
+}
+catch (Exception ex)
+{
+Logger.LogError(ex, "Explorer query failed.");
+_errorMessage = "Explorer analysis failed.";
+_streamState = StreamState.Error;
+}
+finally
+{
+await InvokeAsync(StateHasChanged);
+}
+}
+
+private void StopStream()
+{
+_cts?.Cancel();
+}
+
+private void NavigateToSceneArchive()
+{
+Nav.NavigateTo("/archive");
+}
+
+private void ParseSourcesFrame(string data)
+{
+var json = data["__SOURCES__:".Length..];
+try
+{
+_sources = JsonSerializer.Deserialize<List<SourceInfo>>(json, new JsonSerializerOptions
+{
+PropertyNameCaseInsensitive = true
+}) ?? [];
+_sourcesVisible = _sources.Count > 0;
+}
+catch (JsonException ex)
+{
+Logger.LogWarning(ex, "Malformed source frame ignored.");
+}
+}
+
+private void ParseExplorerSections()
+{
+_explorerSections = _responseText
+.Split("\n\n", StringSplitOptions.RemoveEmptyEntries)
+.Select(section => section.Trim())
+.Where(section => section.Length > 0)
+.ToList();
+}
+private void ResetResponseState()
+{
+_responseBuffer.Clear();
+_responseText = "";
+_sources.Clear();
+_sourcesVisible = false;
+_explorerSections.Clear();
+_errorMessage = null;
+_streamState = StreamState.Idle;
+_stage = QueryStage.Idle;
+}
+
+private static string SourceDisplayName(SourceInfo source)
+{
+return string.IsNullOrWhiteSpace(source.Source) ? "Unknown source" : Path.GetFileName(source.Source);
+}
+
+private static string ConfidenceWidth(double score)
+{
+return $"{Math.Clamp(score * 100, 0, 100):0}%";
+}
+
+public void Dispose()
+{
+_cts?.Cancel();
+_cts?.Dispose();
+}
 }

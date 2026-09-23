@@ -60,6 +60,27 @@ public class QueryController(
         }
     }
 
+    // Focus — sync, narrow, ≤max_sources
+    [HttpPost("focus")]
+    public async Task<IActionResult> Focus([FromBody] QueryRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.Query))
+        {
+            return BadRequest(new { error = "Query cannot be empty." });
+        }
+
+        try
+        {
+            var result = await fastApi.QueryFocusAsync(request, ct);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error in POST /api/query/focus");
+            return StatusCode(500, new { error = ex.Message });
+        }
+    }
+
     // Narrate — streamed via SSE
     [HttpPost("narrate")]
     public async Task NarrateStream([FromBody] QueryRequest request, CancellationToken ct)

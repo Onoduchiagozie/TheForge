@@ -12,6 +12,9 @@ public interface IFastApiClient
     Task<HealthPayload> HealthAsync(CancellationToken ct = default);
     Task<InfoPayload> InfoAsync(CancellationToken ct = default);
     Task<SourceListPayload> ListSourcesAsync(CancellationToken ct = default);
+    Task<QueryResponse?> QueryFocusAsync(QueryRequest request, CancellationToken ct = default);
+    Task<BookListPayload> GetBooksAsync(CancellationToken ct = default);
+
     Task<SourceChunksPayload> GetSourceChunksAsync(string sourceName, int limit = 20, CancellationToken ct = default);
     // GOLD: Context/session memory is intentionally disabled in the pre-Gold build.
     // Task<MemoryPayload> GetMemoryAsync(string sessionId, CancellationToken ct = default);

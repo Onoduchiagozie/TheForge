@@ -38,5 +38,7 @@
       <_ContentIncludedByDefault Remove="Components\SceneArchive\SceneCard.razor" />
       <_ContentIncludedByDefault Remove="Components\SceneArchive\SceneOverlay.razor" />
       <_ContentIncludedByDefault Remove="Components\SceneArchive\SceneRow.razor" />
+      <_ContentIncludedByDefault Remove="Components\Pages\Shared\BookTypehead.razor" />
+      <_ContentIncludedByDefault Remove="Components\Pages\Shared\MultiSourceSelect.razor" />
     </ItemGroup>
 </Project>

@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+ using Microsoft.AspNetCore.Mvc;
 using TheForge.Services;
 
 namespace TheForge.Controllers;
@@ -84,6 +84,26 @@ public class SourcesController(IFastApiClient fastApi, ILogger<SourcesController
         {
             logger.LogError(ex, "Error in GET /api/sources/{SourceName}", sourceName);
             return StatusCode(500, new { error = "Failed to retrieve source chunks.", detail = ex.Message });
+        }
+    }
+}
+
+[ApiController]
+[Route("api/books")]
+public class BooksController(IFastApiClient fastApi, ILogger<BooksController> logger) : ControllerBase
+{
+    [HttpGet]
+    public async Task<IActionResult> ListBooks(CancellationToken ct)
+    {
+        try
+        {
+            var result = await fastApi.GetBooksAsync(ct);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error in GET /api/books");
+            return StatusCode(500, new { error = "Failed to retrieve book manifest.", detail = ex.Message });
         }
     }
 }

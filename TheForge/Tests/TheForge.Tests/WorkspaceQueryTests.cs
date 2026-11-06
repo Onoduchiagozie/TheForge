@@ -95,12 +95,26 @@ public class WorkspaceQueryTests
     private static WorkspaceQueryService Service(FakeApi api) => new(api,
         new QueryStreamParser(NullLogger<QueryStreamParser>.Instance), NullLogger<WorkspaceQueryService>.Instance);
 
+    [TestCase(WorkspaceMode.Explorer)]
+    [TestCase(WorkspaceMode.Narrator)]
+    public async Task ProviderDetailsNeverBecomeACompletedAnswer(WorkspaceMode mode)
+    {
+        var state = new WorkspaceState { Mode = mode, QueryText = "question" };
+        await Service(new FakeApi { Answer = "[ERROR] Gemini models exhausted: HTTP 429 from private-model" })
+            .ExecuteAsync(state, () => Task.CompletedTask);
+        Assert.That(state.Status, Is.EqualTo(StreamState.Error));
+        Assert.That(state.ResponseText, Is.Empty);
+        Assert.That(state.Sources, Is.Empty);
+        Assert.That(state.ErrorMessage, Is.EqualTo("The service is temporarily busy. Please try again later."));
+    }
+
     private sealed class FakeApi : IForgeApiService
     {
         public string? Route { get; private set; }
         public QueryRequest? Request { get; private set; }
         public bool WaitForCancellation { get; init; }
         public Exception? Failure { get; init; }
+        public string Answer { get; init; } = "First\n\nSecond";
         public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public string Stream { get; init; } = "data: __STAGE__:generating\n\ndata: Hello\n\ndata:  world\n\ndata: __SOURCES__:[{\"source\":\"Betrayer\",\"stitch_range\":\"1-3\"}]\n\ndata: [DONE]\n\n";
         public Task<HealthPayload?> GetHealthAsync(CancellationToken ct = default) => Task.FromResult<HealthPayload?>(new() { Status = "ok" });
@@ -116,7 +130,7 @@ public class WorkspaceQueryTests
         private async Task<QueryResponse?> Query(string route, QueryRequest request, CancellationToken ct)
         {
             await Begin(route, request, ct);
-            return new() { Response = "First\n\nSecond", Sources = [new() { Source = "Betrayer" }] };
+            return new() { Response = Answer, Sources = [new() { Source = "Betrayer" }] };
         }
         private async Task Begin(string route, QueryRequest request, CancellationToken ct)
         {

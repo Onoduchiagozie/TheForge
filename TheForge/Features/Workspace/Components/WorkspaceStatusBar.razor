@@ -1,11 +1,7 @@
 <header class="status-bar @(State.Status == StreamState.Streaming ? "status-bar--streaming" : "")">
 <span class="status-dot @(State.IsHealthOnline ? "status-dot--online" : "status-dot--offline")"></span>
 <span class="status-item status-item--health">@State.HealthStatusLabel</span>
-<span class="status-item status-item--model">@State.HealthModelText</span>
-<span class="status-item status-item--chunks">@State.ChunkText</span>
-<span class="status-item status-item--books">@State.BookCountText</span>
 <span class="status-separator"></span>
-<span class="status-item status-item--retrieval">Hybrid Retreival</span>
 <span class="status-item">@State.ModeLabelText</span>
 <button class="status-link" type="button" @onclick="OnArchiveSelected">Scene Archive</button>
 </header>

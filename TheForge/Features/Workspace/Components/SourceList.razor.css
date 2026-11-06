@@ -10,7 +10,7 @@
     right: 0;
     bottom: 0;
     z-index: 8;
-    max-height: 20vh;
+    max-height: 12vh;
     overflow-y: auto;
     background: rgba(6, 6, 6, 0.96);
     box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.35), 0 -1px 0 color-mix(in srgb, var(--accent) 30%, transparent);
@@ -22,7 +22,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
+    padding: 7px 10px;
     border-bottom: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
     background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 14%, transparent), transparent 70%);
     font-family: var(--font-mono);
@@ -32,12 +32,12 @@
 
 .source-count { color: var(--accent); text-shadow: 0 0 8px color-mix(in srgb, var(--accent) 65%, transparent); font-weight: 700; }
 
-.source-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; padding: 14px 16px 16px; }
+.source-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 7px; padding: 8px 10px 10px; }
 
 .source-card {
     display: grid;
     gap: 4px;
-    padding: 12px 12px 12px 14px;
+    padding: 7px 7px 7px 8px;
     border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
     border-left: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
     background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 7%, transparent), rgba(0, 0, 0, 0.28));

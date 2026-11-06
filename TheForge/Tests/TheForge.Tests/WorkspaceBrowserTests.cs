@@ -114,7 +114,6 @@ public class WorkspaceBrowserTests
         await page.Locator(".workspace[data-interactive='true']").WaitForAsync();
         await Assertions.Expect(page.Locator(".workspace")).ToHaveAttributeAsync("data-interactive", "true");
         await Assertions.Expect(page.Locator(".status-item--health")).ToHaveTextAsync("ONLINE");
-        await Assertions.Expect(page.Locator(".status-item--books")).ToHaveTextAsync("1 BOOKS");
         await page.Locator(".query-input").FillAsync("test");
         await page.Locator(".submit-btn").ClickAsync();
         await Assertions.Expect(page.Locator(".explorer-section")).ToHaveCountAsync(2);
@@ -137,7 +136,7 @@ public class WorkspaceBrowserTests
         Assert.That(await page.Locator(".source-list").EvaluateAsync<string>("el => getComputedStyle(el).display"), Is.EqualTo("grid"));
 
         await page.SetViewportSizeAsync(390, 844);
-        Assert.That(await page.Locator(".status-item--model").EvaluateAsync<string>("el => getComputedStyle(el).display"), Is.EqualTo("none"));
+        await Assertions.Expect(page.Locator(".status-item--model")).ToHaveCountAsync(0);
         Assert.That(await page.Locator(".brand-panel").EvaluateAsync<string>("el => getComputedStyle(el).flexDirection"), Is.EqualTo("column"));
         await page.ScreenshotAsync(new() { Path = Path.Combine(TestContext.CurrentContext.TestDirectory, "workspace-mobile.png"), FullPage = true });
         Assert.That(errors, Is.Empty);

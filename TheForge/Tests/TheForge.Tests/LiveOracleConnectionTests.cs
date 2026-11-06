@@ -17,8 +17,7 @@ public class LiveOracleConnectionTests
         await page.GotoAsync("http://127.0.0.1:5157/");
         await page.Locator(".workspace[data-interactive='true']").WaitForAsync(new() { Timeout = 60000 });
         await Assertions.Expect(page.Locator(".status-item--health")).ToHaveTextAsync("ONLINE");
-        await Assertions.Expect(page.Locator(".status-item--model")).ToContainTextAsync("gemini");
-        await Assertions.Expect(page.Locator(".status-item--chunks")).ToHaveTextAsync("498,850 CHUNKS");
+        await Assertions.Expect(page.Locator(".status-item--model")).ToHaveCountAsync(0);
         const string question = "loken saving the girl from jubal when possessed";
         await page.Locator(".query-input").FillAsync(question);
         await Assertions.Expect(page.Locator(".query-input")).ToHaveValueAsync(question);

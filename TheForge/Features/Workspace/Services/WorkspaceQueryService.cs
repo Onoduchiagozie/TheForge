@@ -21,6 +21,14 @@ public sealed class WorkspaceQueryService(IForgeApiService api, QueryStreamParse
                     ? await api.QueryExploreAsync(request, cancellationToken)
                     : await api.QueryFocusAsync(request, cancellationToken);
                 cancellationToken.ThrowIfCancellationRequested();
+                if (result?.Response.Contains("[ERROR]", StringComparison.Ordinal) == true)
+                {
+                    logger.LogWarning("Oracle generation failed: {Detail}", result.Response);
+                    state.ErrorMessage = "The service is temporarily busy. Please try again later.";
+                    state.Status = StreamState.Error;
+                    state.Stage = QueryStage.Error;
+                    return;
+                }
                 state.ApplyResponse(result ?? throw new InvalidOperationException("The archive returned no data."));
                 return;
             }
@@ -42,7 +50,8 @@ public sealed class WorkspaceQueryService(IForgeApiService api, QueryStreamParse
                     case QueryStreamFrameKind.Sources: state.Sources = frame.Sources ?? []; break;
                     case QueryStreamFrameKind.Complete: state.Stage = QueryStage.Complete; break;
                     case QueryStreamFrameKind.Error:
-                        state.ErrorMessage = frame.Text;
+                        logger.LogWarning("Oracle stream failed: {Detail}", frame.Text);
+                        state.ErrorMessage = "The service could not finish your request. Please try again later.";
                         state.Status = StreamState.Error;
                         state.Stage = QueryStage.Error;
                         break;

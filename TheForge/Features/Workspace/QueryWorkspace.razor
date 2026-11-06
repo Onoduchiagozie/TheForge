@@ -1,0 +1,19 @@
+@page "/"
+@layout ForgeLayout
+@rendermode InteractiveServer
+@implements IDisposable
+
+<PageTitle>Warhammer</PageTitle>
+
+<ErrorBoundary>
+    <div class="workspace" data-interactive="@(_interactive ? "true" : "false")">
+        <OfflineDialog IsOpen="_showOfflineModal" OnDismiss="DismissOfflineDialog" />
+        <WorkspaceStatusBar State="_state" OnArchiveSelected="NavigateToSceneArchive" />
+        <main class="workspace-body">
+            <WorkspaceModeSelector State="_state" OnModeChanged="SetMode" OnSubModeChanged="SetSubMode" />
+            <QueryComposer State="_state" OnSubmit="SubmitAsync" OnStop="StopQuery" OnModeChanged="SetMode" />
+            <QueryResults State="_state" />
+            <SourceList Sources="_state.Sources" />
+        </main>
+    </div>
+</ErrorBoundary>

@@ -1,0 +1,53 @@
+<section class="brand-panel">
+    <div class="brand-panel__identity">
+        <AquilaIcon Size="76" />
+        <div>
+            The <h1>KABAN PROJECT</h1>
+            <p class="subtitle">Relive the moment, With lore-accurate facts across the entire Warhammer40k universe.</p>
+            <p class="subtitle subtitle--secondary">
+                Great for fandom content creation, or re-reading & going back to a favourite passage without hunting for the exact
+                chapter or page,  just describe the scene the way you remember it.
+            </p>
+            <p class="subtitle subtitle--secondary">Combines meaning-based search with keyword search, so it finds passages that match the idea and the exact terms better</p>
+        </div>
+    </div>
+    <div class="mode-selector-wrap">
+        <div class="mode-selector" aria-label="Workspace mode">
+            <button type="button" class="@ModeButtonClass(WorkspaceMode.Narrator)" @onclick="() => OnModeChanged.InvokeAsync(WorkspaceMode.Narrator)">
+                <svg class="mode-btn__icon" viewBox="0 0 24 24" stroke-width="1.6" aria-hidden="true"><path d="M4 5c3-1.5 6-1.5 8 0v14c-2-1.5-5-1.5-8 0V5z"/><path d="M20 5c-3-1.5-6-1.5-8 0v14c2-1.5 5-1.5 8 0V5z"/></svg>
+                Narrator
+            </button>
+            <button type="button" class="@ModeButtonClass(WorkspaceMode.Explorer)" @onclick="() => OnModeChanged.InvokeAsync(WorkspaceMode.Explorer)">
+                <svg class="mode-btn__icon" viewBox="0 0 24 24" stroke-width="1.6" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+                Explorer
+            </button>
+        </div>
+
+        <div class="submode-toggle-wrap @(State.Mode == WorkspaceMode.Narrator ? "submode-toggle-wrap--visible" : "")">
+            <div class="submode-toggle @(State.SubMode == NarratorSubMode.WideNet ? "submode-toggle--wide" : "")">
+                <div class="submode-toggle__pill" aria-hidden="true"></div>
+                <button type="button"
+                        class="submode-toggle__btn @(State.SubMode == NarratorSubMode.Focus ? "submode-toggle__btn--active" : "")"
+                        disabled="@(State.Status == StreamState.Streaming)"
+                        @onclick="() => OnSubModeChanged.InvokeAsync(NarratorSubMode.Focus)">
+                    FOCUS
+                </button>
+                <button type="button"
+                        class="submode-toggle__btn @(State.SubMode == NarratorSubMode.WideNet ? "submode-toggle__btn--active" : "")"
+                        disabled="@(State.Status == StreamState.Streaming)"
+                        @onclick="() => OnSubModeChanged.InvokeAsync(NarratorSubMode.WideNet)">
+                    WIDE NET
+                </button>
+            </div>
+        </div>
+
+        <p class="mode-caption">@State.ModeCaptionText</p>
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public WorkspaceState State { get; set; } = default!;
+    [Parameter] public EventCallback<WorkspaceMode> OnModeChanged { get; set; }
+    [Parameter] public EventCallback<NarratorSubMode> OnSubModeChanged { get; set; }
+    private string ModeButtonClass(WorkspaceMode mode) => State.Mode == mode ? "mode-btn mode-btn--active" : "mode-btn mode-btn--inactive";
+}

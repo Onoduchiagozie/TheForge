@@ -1,0 +1,46 @@
+@if (Sources.Count > 0)
+{
+<section class="sources-panel">
+    <div class="sources-header">
+        <span>SOURCES</span>
+        <span class="source-count">@Sources.Count</span>
+    </div>
+    <div class="source-list">
+        @for (var _sourceIndex = 0; _sourceIndex < Sources.Count; _sourceIndex++)
+        {
+        var source = Sources[_sourceIndex];
+        <article class="source-card" style="--source-accent:@SourceAccentColor(_sourceIndex)">
+            <div class="source-card__head">
+                <span class="source-badge">S@(_sourceIndex + 1)</span>
+                <strong style="@SourceWeightStyle(source.Score)">@SourceDisplayName(source)</strong>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(source.Chapter) &&
+            !source.Chapter.Equals("unknown", StringComparison.OrdinalIgnoreCase))
+            {
+            <span>Chapter @source.Chapter</span>
+            }
+            @if (!string.IsNullOrWhiteSpace(source.StitchRange))
+            {
+            <span>Chunks @source.StitchRange</span>
+            }
+            <div class="confidence-bar" aria-label="Source confidence">
+                <div class="confidence-fill" style="width: @ConfidenceWidth(source.Score)"></div>
+            </div>
+        </article>
+        }
+    </div>
+</section>
+}
+
+@code {
+    [Parameter] public IReadOnlyList<SourceInfo> Sources { get; set; } = [];
+    private static readonly string[] Palette = ["#8CFF9E", "#FFC15E", "#6FD3FF", "#FF8FB3", "#C79BFF", "#F5E663"];
+    private static string SourceAccentColor(int index) => Palette[index % Palette.Length];
+    private static string SourceDisplayName(SourceInfo source) => string.IsNullOrWhiteSpace(source.Source) ? "Unknown source" : Path.GetFileName(source.Source);
+    private static string ConfidenceWidth(double score) => FormattableString.Invariant($"{Math.Clamp(score * 100, 0, 100):0}%");
+    private static string SourceWeightStyle(double score)
+    {
+        var clamped = Math.Clamp(score, 0, 1);
+        return FormattableString.Invariant($"font-weight:{400 + (int)(clamped * 400)};font-size:{0.85 + clamped * 0.25:0.00}rem;");
+    }
+}

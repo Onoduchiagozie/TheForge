@@ -1,0 +1,4 @@
+.runtime/
+*.log
+stage-path.txt
+*.png

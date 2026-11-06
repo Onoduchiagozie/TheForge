@@ -1,34 +1,52 @@
-﻿ @using TheForge.Components.Shared 
+@using TheForge.Models
 
 <div class="book-typeahead">
     <div class="filter-input-wrap">
-        <svg class="filter-input__icon" viewBox="0 0 24 24" stroke-width="1.6" aria-hidden="true"><path d="M4 4h4v16H4zM10 4h4v16h-4zM16 5l4-1v16l-4 1z"/></svg>
-        <input class="filter-input"
+        <svg class="filter-input__icon" viewBox="0 0 24 24" stroke-width="1.6" aria-hidden="true">
+            <path d="M5 4v16M10 4v16M15 5l4 14.5" />
+        </svg>
+        <input type="text"
+               class="filter-input"
+               autocomplete="off"
                placeholder="@Placeholder"
                disabled="@Disabled"
-               value="@_query"
-               @oninput="OnInput"
-               @onfocus="() => _showResults = _filtered.Count > 0"
-               @onfocusout="HandleBlur" />
-        @if (_selectedFilename is not null)
-        {
-        <button type="button" class="book-typeahead__clear" @onclick="ClearSelection" aria-label="Clear book filter">×</button>
-        }
+               value="@_text"
+               @oninput="HandleInput"
+               @onfocus="OpenList"
+               @onblur="CloseList"
+               @onkeydown="HandleKeyDown" />
     </div>
 
-    @if (_showResults && _filtered.Count > 0)
+    @if (!string.IsNullOrEmpty(_text) && !Disabled)
     {
-    <ul class="book-typeahead__results">
-        @foreach (var book in _filtered)
+    <button type="button"
+            class="book-typeahead__clear"
+            aria-label="Clear book filter"
+            @onmousedown="ClearSelection"
+            @onmousedown:preventDefault="true">×</button>
+    }
+
+    @if (_open && !Disabled)
+    {
+    <ul class="book-typeahead__results" role="listbox">
+        @if (Results.Count == 0)
+        {
+        <li class="book-typeahead__empty">No matching books</li>
+        }
+        @foreach (var book in Results)
         {
         <li>
-            <button type="button" class="book-typeahead__result" @onmousedown="() => SelectBook(book)">
+            <button type="button"
+                    class="book-typeahead__result @(book.Filename == _selectedFilename ? "book-typeahead__result--active" : "")"
+                    role="option"
+                    @onmousedown="() => Choose(book)"
+                    @onmousedown:preventDefault="true">
                 <span class="book-typeahead__title">@book.Title</span>
                 @if (!string.IsNullOrWhiteSpace(book.Author))
                 {
                 <span class="book-typeahead__author">@book.Author</span>
                 }
-                <span class="book-typeahead__badge book-typeahead__badge--@book.Category">@FormatCategory(book.Category)</span>
+                <span class="book-typeahead__badge book-typeahead__badge--@BadgeKey(book)">@BadgeKey(book).Replace('_', ' ')</span>
             </button>
         </li>
         }
@@ -37,89 +55,157 @@
 </div>
 
 @code {
-    [Parameter] public List<BookInfo> Books { get; set; } = [];
-    [Parameter] public bool Disabled { get; set; }
-    [Parameter] public string Placeholder { get; set; } = "Search books...";
-    [Parameter] public string? ExternalClearSignal { get; set; }
-    [Parameter] public EventCallback<string?> OnBookSelected { get; set; }
+private const int MaxResults = 50;
+private static readonly HashSet<string> KnownBadges =
+["horus_heresy", "novella", "short_story", "anthology", "codex", "other"];
 
-    private string _query = "";
-    private string? _selectedFilename;
-    private bool _showResults;
-    private List<BookInfo> _filtered = [];
+[Parameter] public List<BookInfo> Books { get; set; } = [];
+[Parameter] public bool Disabled { get; set; }
+[Parameter] public string? Placeholder { get; set; }
 
-    private const int MaxResults = 25;
+/// <summary>
+/// The filename the parent wants selected. When the parent changes this
+/// (e.g. a chip is clicked) the box shows that book's title.
+/// </summary>
+[Parameter] public string? SelectedFilename { get; set; }
 
-    protected override void OnParametersSet()
-    {
-        // Parent sets this to a fresh non-null value whenever it needs to
-        // force-clear this component from outside (e.g. mutual-exclusivity
-        // with the source multi-select). Comparing against the currently
-        // selected filename keeps this idempotent across re-renders.
-        if (ExternalClearSignal is null && _selectedFilename is not null)
-        {
-            ClearInternal();
-        }
-    }
+/// <summary>Parent flips this to a fresh value to force a clear.</summary>
+[Parameter] public string? ExternalClearSignal { get; set; }
 
-    private void OnInput(ChangeEventArgs e)
-    {
-        _query = e.Value?.ToString() ?? "";
+[Parameter] public EventCallback<string?> OnBookSelected { get; set; }
 
-        if (_selectedFilename is not null)
-        {
-            _selectedFilename = null;
-            _ = OnBookSelected.InvokeAsync(null);
-        }
+private string _text = "";
+private string? _selectedFilename;
+private string? _lastParamFilename;
+private string? _lastClearSignal;
+private bool _initialised;
+private bool _open;
 
-        if (string.IsNullOrWhiteSpace(_query))
-        {
-            _filtered = [];
-            _showResults = false;
-            return;
-        }
+protected override void OnParametersSet()
+{
+if (!_initialised)
+{
+_initialised = true;
+_lastClearSignal = ExternalClearSignal;
+_lastParamFilename = null;
+}
 
-        _filtered = Books
-            .Where(b =>
-                (b.Title?.Contains(_query, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (b.Author?.Contains(_query, StringComparison.OrdinalIgnoreCase) ?? false))
-            .Take(MaxResults)
-            .ToList();
+if (ExternalClearSignal != _lastClearSignal)
+{
+_lastClearSignal = ExternalClearSignal;
+_selectedFilename = null;
+_lastParamFilename = null;
+_text = "";
+_open = false;
+return;
+}
 
-        _showResults = _filtered.Count > 0;
-    }
+// Parent pushed a different book in -> mirror it in the box.
+if (SelectedFilename != _lastParamFilename)
+{
+_lastParamFilename = SelectedFilename;
+_selectedFilename = SelectedFilename;
+_text = TitleFor(SelectedFilename);
+_open = false;
+}
+}
 
-    private void SelectBook(BookInfo book)
-    {
-        _query = book.Title;
-        _selectedFilename = book.Filename;
-        _showResults = false;
-        _ = OnBookSelected.InvokeAsync(book.Filename);
-    }
+private string TitleFor(string? filename)
+{
+if (string.IsNullOrWhiteSpace(filename))
+{
+return "";
+}
 
-    private void ClearSelection()
-    {
-        ClearInternal();
-        _ = OnBookSelected.InvokeAsync(null);
-    }
+return Books.FirstOrDefault(b => b.Filename == filename)?.Title ?? "";
+}
 
-    private void ClearInternal()
-    {
-        _query = "";
-        _selectedFilename = null;
-        _filtered = [];
-        _showResults = false;
-    }
+private List<BookInfo> Results
+{
+get
+{
+var tokens = (_selectedFilename is not null ? "" : _text)
+.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-    private void HandleBlur() => _showResults = false;
+return Books
+.Where(b => tokens.All(t =>
+(b.Title?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false) ||
+(b.Author?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false) ||
+(b.Series?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false)))
+.OrderBy(b => b.Title)
+.Take(MaxResults)
+.ToList();
+}
+}
 
-    private static string FormatCategory(string category) => category switch
-    {
-        "horus_heresy" => "Horus Heresy",
-        "novella" => "Novella",
-        "short_story" => "Short Story",
-        "anthology" => "Anthology",
-        "codex" => "Codex",
-        _ => "Other"
-    };
+private static string BadgeKey(BookInfo book)
+{
+var raw = !string.IsNullOrWhiteSpace(book.Type) ? book.Type : book.Category;
+var key = (raw ?? "").Trim().ToLowerInvariant().Replace(' ', '_').Replace('-', '_');
+
+if (KnownBadges.Contains(key))
+{
+return key;
+}
+
+return book.IsHorusHeresy ? "horus_heresy" : "other";
+}
+
+private void OpenList() => _open = true;
+
+private void CloseList() => _open = false;
+
+private async Task HandleInput(ChangeEventArgs e)
+{
+_text = e.Value?.ToString() ?? "";
+_open = true;
+
+// Typing over a selected book deselects it, so the box and the real
+// filter can never disagree.
+if (_selectedFilename is not null)
+{
+_selectedFilename = null;
+_lastParamFilename = null;
+await OnBookSelected.InvokeAsync(null);
+}
+}
+
+private async Task HandleKeyDown(KeyboardEventArgs e)
+{
+if (e.Key == "Escape")
+{
+_open = false;
+}
+else if (e.Key == "Enter" && _open)
+{
+var first = Results.FirstOrDefault();
+if (first is not null)
+{
+await Choose(first);
+}
+}
+}
+
+private async Task Choose(BookInfo book)
+{
+_selectedFilename = book.Filename;
+_lastParamFilename = book.Filename;
+_text = book.Title;
+_open = false;
+await OnBookSelected.InvokeAsync(book.Filename);
+}
+
+private async Task ClearSelection()
+{
+var hadSelection = _selectedFilename is not null;
+_text = "";
+_selectedFilename = null;
+_lastParamFilename = null;
+_open = false;
+
+if (hadSelection)
+{
+await OnBookSelected.InvokeAsync(null);
+}
+}
 }

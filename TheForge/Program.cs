@@ -1,16 +1,25 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.DataProtection;
 using TheForge.Components;
 using TheForge.Data;
-using TheForge.Data.SceneArchive;
+using TheForge.Features.SceneArchive.Data;
 using TheForge.Services;
 using TheForge.Services.Interfaces;
-using TheForge.Services.SceneArchive;
+using TheForge.Features.Workspace.Services;
+using TheForge.Features.SceneArchive.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Browser tests use isolated in-memory keys, without touching the developer's key ring.
+if (builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddDataProtection().UseEphemeralDataProtectionProvider();
+    builder.WebHost.UseStaticWebAssets();
+}
+
 // Testing-only: bind to all network interfaces (not just localhost) so the
 // ngrok tunnel can reach Kestrel. AllowedHosts "*" is set in appsettings.json.
-builder.WebHost.UseUrls("http://0.0.0.0:5157");
+builder.WebHost.UseUrls(builder.Configuration["Urls"] ?? "http://0.0.0.0:5157");
 
 
 builder.Services.AddControllers()
@@ -29,8 +38,7 @@ builder.Services.AddRazorComponents()
 builder.Services.AddDbContext<SceneArchiveDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("SceneArchiveDb")));
 builder.Services.AddScoped<ISceneArchiveRepository, SceneArchiveRepository>();
-// Singleton: SceneRankingService owns the rotation-window cache itself; Scoped would create
-// a fresh (empty) cache per request and defeat the whole point of caching it.
+// Ranking uses the shared IMemoryCache; keep its repository/DbContext dependency scoped.
 builder.Services.AddScoped<ISceneRankingService, SceneRankingService>();
 builder.Services.AddScoped<ISceneArchiveService, SceneArchiveService>();
 builder.Services.AddScoped<IArchiveAccessRequestService, ArchiveAccessRequestService>();
@@ -44,6 +52,8 @@ builder.Services.AddHttpClient<IFastApiClient, FastApiClient>(client =>
     }
 
     client.BaseAddress = new Uri(baseUrl);
+    // API requests must reach Oracle rather than ngrok's browser interstitial.
+    client.DefaultRequestHeaders.TryAddWithoutValidation("ngrok-skip-browser-warning", "1");
     client.Timeout = TimeSpan.FromMinutes(10);
 });
 
@@ -60,6 +70,8 @@ builder.Services.AddHttpClient("ForgeApi", client =>
     client.Timeout = TimeSpan.FromMinutes(10);
 });
 builder.Services.AddScoped<IForgeApiService, ForgeApiService>();
+builder.Services.AddScoped<QueryStreamParser>();
+builder.Services.AddScoped<WorkspaceQueryService>();
 builder.Services.AddScoped<IThemeService, ThemeService>();
 
 builder.Services.AddEndpointsApiExplorer();

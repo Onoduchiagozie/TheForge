@@ -1,0 +1,52 @@
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    min-height: 100%;
+    margin: 0;
+}
+
+body {
+    overflow: hidden;
+}
+
+button,
+textarea,
+input {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+button:disabled {
+    cursor: not-allowed;
+}
+
+a {
+    color: inherit;
+}
+
+::-webkit-scrollbar {
+    width: 4px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--accent);
+    border-radius: 2px;
+}
+
+::selection {
+    background: var(--accent);
+    color: var(--bg-primary);
+}

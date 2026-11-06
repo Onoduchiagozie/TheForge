@@ -3,3 +3,12 @@ obj/
 /packages/
 riderModule.iml
 /_ReSharper.Caches/
+
+# Runtime data, local helpers, test output, and separate backend checkout
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+**/.runtime/
+**/TestResults/
+TheForge/tools/OmnissiahCore/

@@ -1,0 +1,78 @@
+@if (State.Status == StreamState.Streaming && State.Mode == WorkspaceMode.Narrator && State.SubMode == NarratorSubMode.WideNet)
+{
+<div class="pipeline-progress" aria-live="polite">
+    <AquilaIcon Size="54" Spinning="true" />
+
+
+    <div class="pipeline-progress__body">
+        <div class="pipeline-progress__track">
+            <div class="pipeline-progress__fill" style="width:@(State.Stage.ProgressPercent())%"></div>
+        </div>
+        <div class="pipeline-progress__label">
+            <span class="pipeline-progress__text">@State.Stage.Label()</span>
+            <span class="pipeline-progress__pct">@State.Stage.ProgressPercent()%</span>
+        </div>
+    </div>
+</div>
+}
+
+@if (State.Status == StreamState.Streaming &&
+(State.Mode == WorkspaceMode.Explorer || (State.Mode == WorkspaceMode.Narrator && State.SubMode == NarratorSubMode.Focus)))
+{
+<div class="scan-loading" aria-hidden="true">
+    <div class="scan-loading__bar"></div>
+</div>
+}
+
+<section class="@State.ResponsePanelClass">
+    @switch (State.Status)
+    {
+    case StreamState.Idle:
+    <div class="idle-state">
+        <span class="idle-text">@State.IdleText</span><span class="idle-cursor" aria-hidden="true"></span>
+    </div>
+    break;
+    case StreamState.Streaming:
+    <pre class="response-text">@State.ResponseText@if (State.Mode == WorkspaceMode.Narrator && State.SubMode == NarratorSubMode.WideNet)
+        {
+        <span class="cursor" aria-hidden="true"></span>
+        }</pre>
+    break;
+    case StreamState.Complete:
+    if (State.IsEmptyResult)
+    {
+    <div class="empty-state">
+        <p class="empty-state__headline">No records found</p>
+        <p class="empty-state__hint">
+            @(State.HasAnyFilter
+            ? "Try removing the book/source filter or rephrasing your query."
+            : "Try rephrasing your query.")
+        </p>
+    </div>
+    }
+    else if (State.Mode == WorkspaceMode.Explorer && State.ExplorerSections.Count > 0)
+    {
+    foreach (var sectionz in State.ExplorerSections)
+    {
+    <article class="explorer-section">
+        <p>@sectionz</p>
+    </article>
+    }
+    }
+    else
+    {
+    <pre class="response-text">@State.ResponseText<span class="complete-mark" aria-hidden="true">■</span></pre>
+    }
+    break;
+    case StreamState.Error:
+    <p class="response-error">@State.ErrorMessage</p>
+    break;
+    case StreamState.Cancelled:
+    <pre class="response-text">@State.ResponseText <span class="interrupted">[STREAM INTERRUPTED]</span></pre>
+    break;
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public WorkspaceState State { get; set; } = default!;
+}

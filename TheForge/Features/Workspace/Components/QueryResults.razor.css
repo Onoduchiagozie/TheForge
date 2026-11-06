@@ -1,0 +1,135 @@
+.response-panel {
+    border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+    background: var(--bg-panel);
+    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.2);
+}
+
+.response-error { margin: 0; color: var(--danger); font-family: var(--font-mono); font-size: 12px; }
+
+.response-panel { min-height: 320px; border-radius: 4px; padding: 24px; }
+
+.response-panel--narrator { font-family: Georgia, serif; font-size: 16px; line-height: 1.8; letter-spacing: 0.01em; }
+
+.response-panel--explorer { font-family: var(--font-mono); font-size: 14px; line-height: 1.6; letter-spacing: 0.02em; }
+
+.idle-state { min-height: 260px; display: grid; place-items: center; }
+
+.idle-text { margin: 0; opacity: 0.45; font-style: italic; }
+
+.idle-cursor {
+    display: inline-block;
+    width: 8px;
+    height: 0.9em;
+    margin-left: 4px;
+    vertical-align: text-bottom;
+    background: var(--accent);
+    animation: blink 1s step-end infinite;
+}
+
+.empty-state { min-height: 260px; display: grid; place-items: center; gap: 8px; text-align: center; }
+
+.empty-state__headline { margin: 0; color: var(--text-primary); font-family: var(--font-mono); font-size: 12px; letter-spacing: 2px; text-transform: uppercase; }
+
+.empty-state__hint { margin: 0; color: var(--text-muted); font-family: var(--font-mono); font-size: 12.5px; }
+
+.response-text { margin: 0; white-space: pre-wrap; word-break: break-word; color: var(--text-primary); font: inherit; }
+
+.cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    margin-left: 2px;
+    vertical-align: text-bottom;
+    background: var(--accent);
+    animation: blink 1s step-end infinite;
+}
+
+.complete-mark { margin-left: 8px; color: var(--accent); animation: fade-in 0.8s ease forwards; }
+
+.interrupted { color: var(--text-muted); font-family: var(--font-mono); font-size: 12px; }
+
+.explorer-section { margin-bottom: 24px; padding-left: 16px; border-left: 3px solid color-mix(in srgb, var(--accent) 60%, transparent); }
+
+.explorer-section p { margin: 0; white-space: pre-wrap; }
+
+.explorer-section p::first-line { color: var(--accent); font-size: 1.08em; }
+
+.pipeline-progress {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+    background: var(--bg-panel);
+    padding: 12px 16px;
+}
+
+.pipeline-progress__body { flex: 1; }
+
+.pipeline-progress__track { height: 3px; width: 100%; border-radius: 2px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+
+.pipeline-progress__fill {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--accent);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 45%, transparent);
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pipeline-progress__label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.pipeline-progress__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--accent);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 50%, transparent);
+    animation: pipeline-pulse 1.2s ease-in-out infinite;
+}
+
+.pipeline-progress__text { flex: 1; }
+
+.pipeline-progress__pct { color: var(--accent); font-variant-numeric: tabular-nums; }
+
+.scan-loading { position: relative; height: 3px; width: 100%; overflow: hidden; border-radius: 2px; background: rgba(255, 255, 255, 0.08); }
+
+.scan-loading__bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 40%;
+    background: var(--accent);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 45%, transparent);
+    animation: scan-indeterminate 1.3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes blink { 50% { opacity: 0; } }
+
+@keyframes pipeline-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.7); } }
+
+@keyframes scan-indeterminate { 0% { left: -40%; width: 40%; } 60% { left: 100%; width: 55%; } 100% { left: 100%; width: 55%; } }
+
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+.scan-loading__bar,
+    .idle-cursor,
+    .cursor { animation: none; }
+
+}
+@media (max-width: 768px) {
+.response-panel { min-height: 280px; padding: 18px; }
+
+.pipeline-progress { padding: 10px 12px; }
+
+}

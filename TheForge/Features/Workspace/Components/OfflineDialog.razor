@@ -1,0 +1,25 @@
+@if (IsOpen)
+{
+<div class="offline-modal-backdrop" @onclick="OnDismiss">
+<div class="offline-modal" @onclick:stopPropagation="true">
+    <p class="offline-modal__title">ARCHIVE OFFLINE</p>
+    <p class="offline-modal__body">
+        The KABAN link  is down. Access has to  be requested manually.
+    </p>
+    <div class="offline-modal__actions">
+        <a class="request-access-btn" href="@WhatsAppRequestUrl" target="_blank" rel="noopener">
+            REQUEST ACCESS
+        </a>
+        <button type="button" class="offline-modal__dismiss" @onclick="OnDismiss">
+            DISMISS
+        </button>
+    </div>
+</div>
+</div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback OnDismiss { get; set; }
+    private static string WhatsAppRequestUrl => "https://wa.me/+2347055260700?text=" + Uri.EscapeDataString("Hi, requesting access to The Cogitator .");
+}

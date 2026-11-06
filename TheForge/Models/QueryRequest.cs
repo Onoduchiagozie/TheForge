@@ -42,6 +42,7 @@ public class HealthPayload
     public string ActiveProfile { get; set; } = string.Empty;
     public string MachineRole { get; set; } = string.Empty;
     public string OllamaModel { get; set; } = string.Empty;
+    public string LlmModel { get; set; } = string.Empty;
     public string OllamaUrl { get; set; } = string.Empty;
     public int MetadataLoaded { get; set; }
 }

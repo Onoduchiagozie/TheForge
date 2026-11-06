@@ -1,0 +1,15 @@
+.offline-modal-backdrop { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(0, 0, 0, 0.65); backdrop-filter: blur(4px); }
+
+.offline-modal { width: min(360px, 90vw); border: 1px solid var(--danger); background: var(--bg-panel); padding: 22px 24px; box-shadow: 0 0 40px rgba(255, 68, 68, 0.15); font-family: var(--font-mono); }
+
+.offline-modal__title { margin: 0 0 10px; color: var(--danger); letter-spacing: 2px; font-size: 13px; }
+
+.offline-modal__body { margin: 0 0 18px; color: var(--text-muted); font-size: 12.5px; line-height: 1.6; }
+
+.offline-modal__actions { display: flex; gap: 10px; }
+
+.request-access-btn { flex: 1; text-align: center; padding: 10px 14px; border: 1px solid #25D366; color: #25D366; text-decoration: none; font-size: 12px; letter-spacing: 1.5px; }
+
+.request-access-btn:hover { background: rgba(37, 211, 102, 0.1); }
+
+.offline-modal__dismiss { padding: 10px 14px; border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); background: transparent; color: var(--text-muted); font-size: 12px; letter-spacing: 1.5px; }

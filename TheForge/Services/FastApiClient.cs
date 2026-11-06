@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text;
 using TheForge.Models;
 
 namespace TheForge.Services;
@@ -16,10 +17,24 @@ public class FastApiClient(HttpClient httpClient, ILogger<FastApiClient> logger)
     };
 
     public Task<QueryResponse> QueryAsync(QueryRequest request, CancellationToken ct = default) =>
-        PostAsync<QueryResponse>("query", request, ct);
+        QueryExplorerAsync(request, ct);
 
-    public Task<QueryResponse> QueryNarrateAsync(QueryRequest request, CancellationToken ct = default) =>
-        PostAsync<QueryResponse>("query/narrate", request, ct);
+    public async Task<QueryResponse> QueryNarrateAsync(QueryRequest request, CancellationToken ct = default)
+    {
+        var result = new QueryResponse { Query = request.Query };
+        var text = new StringBuilder();
+        await foreach (var payload in QueryNarrateStreamAsync(request, ct))
+        {
+            if (payload.StartsWith("[ERROR]", StringComparison.Ordinal))
+                throw new InvalidOperationException(payload[7..].Trim());
+            if (payload.StartsWith("__SOURCES__:", StringComparison.Ordinal))
+                result.Sources = JsonSerializer.Deserialize<List<SourceInfo>>(payload[12..], JsonOptions) ?? [];
+            else if (!payload.StartsWith("__STAGE__:", StringComparison.Ordinal))
+                text.Append(payload);
+        }
+        result.Response = text.ToString();
+        return result;
+    }
 
     public Task<QueryResponse> QueryExplorerAsync(QueryRequest request, CancellationToken ct = default) =>
         PostAsync<QueryResponse>("query/explore", request, ct);
@@ -28,7 +43,7 @@ public class FastApiClient(HttpClient httpClient, ILogger<FastApiClient> logger)
         PostAsync<QueryResponse>("query/focus", request, ct);
 
     public IAsyncEnumerable<string> QueryStreamAsync(QueryRequest request, CancellationToken ct = default) =>
-        StreamAsync("query/stream", request, ct);
+        QueryNarrateStreamAsync(request, ct);
 
     public IAsyncEnumerable<string> QueryNarrateStreamAsync(QueryRequest request, CancellationToken ct = default) =>
         StreamAsync("query/narrate", request, ct);
@@ -95,20 +110,8 @@ public class FastApiClient(HttpClient httpClient, ILogger<FastApiClient> logger)
         await using var stream = await response.Content.ReadAsStreamAsync(ct);
         using var reader = new StreamReader(stream);
 
-        while (!ct.IsCancellationRequested)
+        await foreach (var payload in ServerSentEvents.ReadAsync(reader, ct))
         {
-            var line = await reader.ReadLineAsync(ct);
-            if (line is null)
-            {
-                yield break;
-            }
-
-            if (!line.StartsWith("data: ", StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            var payload = line["data: ".Length..];
             if (payload == "[DONE]")
             {
                 yield break;
@@ -129,5 +132,6 @@ public class FastApiClient(HttpClient httpClient, ILogger<FastApiClient> logger)
 
             yield return payload;
         }
+        throw new IOException("Oracle stream ended without its completion marker.");
     }
 }

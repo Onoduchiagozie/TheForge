@@ -1,0 +1,92 @@
+<section class="query-panel">
+    <label class="query-label" for="query-text">QUERY</label>
+    <textarea id="query-text"
+              class="query-input"
+              placeholder="@State.QueryPlaceholder"
+              disabled="@(State.Status == StreamState.Streaming)"
+              @bind="State.QueryText"
+              @bind:event="oninput"></textarea>
+
+    <div class="chip-row" role="group" aria-label="Example queries">
+        @foreach (var chip in State.ActiveChips)
+        {
+        <button type="button"
+                class="chip @ChipClass(chip)"
+                disabled="@(State.Status == StreamState.Streaming)"
+                title="@(chip.BookHint is not null ? $"Also sets Book Filter → {chip.BookHint}" : null)"
+                @onclick="() => State.SelectChip(chip)">
+            "@chip.Text"
+            @if (chip.BookHint is not null && State.Mode == WorkspaceMode.Narrator)
+            {
+            <span class="chip__book">@chip.BookHint</span>
+            }
+        </button>
+        }
+    </div>
+
+    @if (State.ShowBookFilterHint)
+    {
+    <div class="hint-banner" role="note">
+        <span class="hint-banner__icon" aria-hidden="true">◆</span>
+        <span class="hint-banner__text">
+            For best results, use the <strong>Book Filter</strong> to narrow the search to a single book ,
+            works better in  <strong>Wide Net</strong>.
+            @if (State.Mode == WorkspaceMode.Explorer)
+            {
+            <button type="button" class="hint-banner__action" @onclick="() => OnModeChanged.InvokeAsync(WorkspaceMode.Narrator)">
+                SWITCH TO NARRATOR
+            </button>
+            }
+        </span>
+        <button type="button" class="hint-banner__dismiss" aria-label="Dismiss tip" @onclick="() => State.ShowBookFilterHint = false">×</button>
+    </div>
+    }
+
+    @if (State.Mode == WorkspaceMode.Narrator)
+    {
+    @if (State.SelectedBookTitle is not null)
+    {
+    <div class="active-book" role="status">
+        <span class="active-book__label">BOOK FILTER ACTIVE</span>
+        <span class="active-book__title">@State.SelectedBookTitle</span>
+        <button type="button" class="active-book__clear" aria-label="Clear book filter"
+                disabled="@(State.Status == StreamState.Streaming)"
+                @onclick="State.ClearBookFilter">×</button>
+    </div>
+    }
+    <div class="filter-row">
+        <label>BOOK FILTER</label>
+        <BookTypehead Books="State.Books"
+                       SelectedFilename="@State.SelectedBookFilename"
+                       Disabled="@(State.Status == StreamState.Streaming)"
+                       Placeholder="@State.BookFilterPlaceholder"
+                       ExternalClearSignal="@State.BookClearSignal"
+                       OnBookSelected="State.SelectBook" />
+    </div>
+    }
+
+    <div class="query-actions">
+        <button type="button" class="submit-btn" disabled="@State.SubmitDisabled" @onclick="OnSubmit">
+            @State.SubmitLabel
+        </button>
+        @if (State.Status == StreamState.Streaming)
+        {
+        <button type="button" class="stop-btn" @onclick="OnStop">STOP</button>
+        }
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(State.ErrorMessage))
+    {
+    <p class="error-message">@State.ErrorMessage</p>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public WorkspaceState State { get; set; } = default!;
+    [Parameter] public EventCallback OnSubmit { get; set; }
+    [Parameter] public EventCallback OnStop { get; set; }
+    [Parameter] public EventCallback<WorkspaceMode> OnModeChanged { get; set; }
+    private string ChipClass(PromptChip chip) =>
+        (chip.BookHint is not null && State.Mode == WorkspaceMode.Narrator ? "chip--book-linked " : "") +
+        (State.ActiveChipText == chip.Text ? "chip--active" : "");
+}

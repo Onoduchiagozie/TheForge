@@ -9,6 +9,17 @@
     }
   },
   "profiles": {
+    "oracle-local": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "launchUrl": "",
+      "applicationUrl": "http://127.0.0.1:5157",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "FastApi__BaseUrl": "https://emerald-nativity-guacamole.ngrok-free.dev/"
+      }
+    },
     "https": {
       "commandName": "Project",
       "dotnetRunMessages": true,

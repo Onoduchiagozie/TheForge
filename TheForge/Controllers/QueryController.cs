@@ -11,7 +11,7 @@ public class QueryController(
     QueryCacheService cacheService,
     ILogger<QueryController> logger) : ControllerBase
 {
-    // Inspect (Remembrancer / default)
+    // Legacy default route uses Oracle's Explorer endpoint.
     [HttpPost]
     public async Task<IActionResult> Query([FromBody] QueryRequest request, CancellationToken ct)
     {
@@ -99,8 +99,9 @@ public class QueryController(
         {
             await foreach (var token in fastApi.QueryNarrateStreamAsync(request, ct))
             {
-                await Response.WriteAsync($"data: {token}\n\n", ct);
+                await Response.WriteAsync(ServerSentEvents.Encode(token), ct);
                 await Response.Body.FlushAsync(ct);
+                if (token.StartsWith("[ERROR]", StringComparison.Ordinal)) return;
             }
 
             await Response.WriteAsync("data: [DONE]\n\n", ct);
@@ -113,7 +114,7 @@ public class QueryController(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error in POST /api/query/narrate/stream");
-            await Response.WriteAsync($"data: [ERROR] {ex.Message}\n\n", ct);
+            await Response.WriteAsync(ServerSentEvents.Encode($"[ERROR] {ex.Message}"), ct);
             await Response.Body.FlushAsync(ct);
         }
     }

@@ -12,6 +12,10 @@
         <Content Remove="ForgeLiveTests\**" />
         <EmbeddedResource Remove="ForgeLiveTests\**" />
         <None Remove="ForgeLiveTests\**" />
+        <Compile Remove="Tests\**" />
+        <Content Remove="Tests\**" />
+        <EmbeddedResource Remove="Tests\**" />
+        <None Remove="Tests\**" />
     </ItemGroup>
 
     <ItemGroup>
@@ -28,17 +32,4 @@
         <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.4" />
     </ItemGroup>
 
-    <ItemGroup>
-        <Folder Include="Tests\" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <_ContentIncludedByDefault Remove="Components\SceneArchive\ArchiveLinkStatus.razor" />
-      <_ContentIncludedByDefault Remove="Components\SceneArchive\ArchiveSeal.razor" />
-      <_ContentIncludedByDefault Remove="Components\SceneArchive\SceneCard.razor" />
-      <_ContentIncludedByDefault Remove="Components\SceneArchive\SceneOverlay.razor" />
-      <_ContentIncludedByDefault Remove="Components\SceneArchive\SceneRow.razor" />
-      <_ContentIncludedByDefault Remove="Components\Pages\Shared\BookTypehead.razor" />
-      <_ContentIncludedByDefault Remove="Components\Pages\Shared\MultiSourceSelect.razor" />
-    </ItemGroup>
 </Project>

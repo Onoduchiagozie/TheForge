@@ -72,3 +72,31 @@ pwsh Tests/TheForge.Tests/bin/Debug/net8.0/playwright.ps1 install chromium
 Browser tests launch an isolated app on a free localhost port with a local fake backend, an empty test archive and ephemeral data-protection keys. They cover UI interactions, filters, all query modes, cancellation, responsive CSS and moved static assets. They do not verify live backend retrieval or answer accuracy. Screenshots and app logs are written into the test build output.
 
 `doc/` also contains upstream OmnissiahCore backend reference material; it does not describe this project's directory structure.
+
+## Publish the website
+
+Publish in Rider using **Release** to a folder, or run:
+
+```powershell
+dotnet publish TheForge.csproj -c Release --no-self-contained -o bin/publish/site
+```
+
+Upload the contents of that publish folder to the site's application root, including
+`wwwroot` and `TheForge.dll` from the same publish. Uploading the project source folder
+or only the DLL can leave the HTML and Blazor component styles out of sync. Preserve
+the host's database and private configuration. Local tools, backend checkouts and
+development settings are excluded from the publish output.
+
+Stylesheet URLs include a hash of their contents. When CSS changes, the URL changes
+automatically so browsers fetch the matching styles. Ctrl+Shift+R bypasses a browser's
+cached files when diagnosing an older deployment.
+
+To check a running published build (not `dotnet run`), set its URL and run the opt-in check:
+
+```powershell
+$env:THEFORGE_STYLE_CHECK_URL = 'http://127.0.0.1:5157/'
+dotnet test Tests/TheForge.Tests/TheForge.Tests.csproj --filter FullyQualifiedName~PublishedStylesTests
+```
+
+It checks stylesheet responses and content hashes, actual applied fonts/layout, the
+logo and Scene Archive. It submits no lore queries.

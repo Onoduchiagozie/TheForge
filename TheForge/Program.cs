@@ -73,6 +73,7 @@ builder.Services.AddScoped<IForgeApiService, ForgeApiService>();
 builder.Services.AddScoped<QueryStreamParser>();
 builder.Services.AddScoped<WorkspaceQueryService>();
 builder.Services.AddScoped<IThemeService, ThemeService>();
+builder.Services.AddSingleton<StaticAssetUrls>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>

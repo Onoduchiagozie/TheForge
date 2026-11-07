@@ -1,23 +1,16 @@
 @implements IDisposable
 @inject IThemeService ThemeService
+@inject TheForge.Services.StaticAssetUrls StaticAssets
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="@ThemeVariables">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
-    <link rel="stylesheet" href="css/forge-base.css" />
-    <link rel="stylesheet" href="css/scene-archive-theme.css" />
-    <link rel="stylesheet" href="TheForge.styles.css" />
-    <style>
-        :root {
-            @foreach (var kvp in ThemeService.GetCssVariables())
-            {
-                <text>@kvp.Key: @kvp.Value;</text>
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="@StaticAssets.VersionedPath("css/forge-base.css")" />
+    <link rel="stylesheet" href="@StaticAssets.VersionedPath("css/scene-archive-theme.css")" />
+    <link rel="stylesheet" href="@StaticAssets.VersionedPath("TheForge.styles.css")" />
     <HeadOutlet @rendermode="InteractiveServer" />
 </head>
 <body>
@@ -27,6 +20,10 @@
 </html>
 
 @code {
+    // HTML attributes decode quoted font names; raw <style> text does not.
+    private string ThemeVariables => string.Join(";", ThemeService.GetCssVariables()
+        .Select(variable => $"{variable.Key}: {variable.Value}"));
+
     protected override void OnInitialized()
     {
         ThemeService.OnThemeChanged += HandleThemeChanged;

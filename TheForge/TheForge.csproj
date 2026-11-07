@@ -16,6 +16,12 @@
         <Content Remove="Tests\**" />
         <EmbeddedResource Remove="Tests\**" />
         <None Remove="Tests\**" />
+        <!-- Local diagnostics and backend checkouts are never website assets. -->
+        <Compile Remove="tools\**" />
+        <Content Remove="tools\**" />
+        <EmbeddedResource Remove="tools\**" />
+        <None Remove="tools\**" />
+        <Content Update="appsettings.Development.json;appsettings.Lenovo.json" CopyToPublishDirectory="Never" />
     </ItemGroup>
 
     <ItemGroup>

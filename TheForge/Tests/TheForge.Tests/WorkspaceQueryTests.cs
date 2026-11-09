@@ -108,6 +108,21 @@ public class WorkspaceQueryTests
         Assert.That(state.ErrorMessage, Is.EqualTo("The service is temporarily busy. Please try again later."));
     }
 
+    [Test]
+    public void WorkspaceSessionIsStableAcrossQueriesAndDistinctAcrossPages()
+    {
+        var first = new WorkspaceState { QueryText = "why did Horus turn traitor" };
+        var second = new WorkspaceState { QueryText = "why did Horus turn traitor" };
+        var one = first.BuildRequest();
+        var repeat = first.BuildRequest();
+        var different = second.BuildRequest();
+
+        Assert.That(one.SessionId, Is.Not.Null.And.Not.Empty);
+        Assert.That(one.SessionId, Is.EqualTo(repeat.SessionId));
+        Assert.That(one.SessionId, Is.Not.EqualTo(different.SessionId));
+        Assert.That(one.SessionId, Does.Not.Equal("default"));
+    }
+
     private sealed class FakeApi : IForgeApiService
     {
         public string? Route { get; private set; }

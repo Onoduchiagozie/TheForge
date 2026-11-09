@@ -21,16 +21,21 @@ public class QueryController(
         }
 
         EnsureSession(request);
-        var cached = cacheService.Get(request);
-        if (cached is not null)
+        // Unversioned callers are conversation-dependent and cannot safely
+        // reuse a prior generated answer.
+        var cacheable = request.ConversationTurn is >= 0;
+        if (cacheable)
         {
-            return Ok(cached);
+            var cached = cacheService.Get(request);
+            if (cached is not null)
+                return Ok(cached);
         }
 
         try
         {
             var result = await fastApi.QueryAsync(request, ct);
-            cacheService.Set(request, result);
+            if (cacheable)
+                cacheService.Set(request, result);
             return Ok(result);
         }
         catch (Exception ex)

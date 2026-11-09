@@ -44,13 +44,14 @@ public class QueryCacheService(IMemoryCache cache, ILogger<QueryCacheService> lo
     {
         // Include every request dimension that affects retrieval and output.
         var session = req.SessionId?.Trim() ?? string.Empty;
+        var conversationTurn = req.ConversationTurn?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "unversioned";
         var query = req.Query.Trim().ToLowerInvariant();
         var book = req.BookFilter?.Trim().ToLowerInvariant() ?? string.Empty;
         var sources = string.Join("\u001f", (req.SourceFilter ?? [])
             .Where(source => !string.IsNullOrWhiteSpace(source))
             .Select(source => source.Trim())
             .OrderBy(source => source, StringComparer.Ordinal));
-        var raw = string.Join("\u001e", session, query, book, sources);
+        var raw = string.Join("\u001e", session, conversationTurn, query, book, sources);
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(raw));
         return $"qcache:{Convert.ToHexString(hash).ToLowerInvariant()}";
     }

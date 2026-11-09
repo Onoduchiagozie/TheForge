@@ -63,7 +63,7 @@ public class FastApiClientTests
     [Test]
     public async Task SessionIdentifierIsForwardedInSnakeCase()
     {
-        var backend = new Backend("{\\"response\\":\\"analysis\\"}", "application/json");
+        var backend = new Backend("{\"response\":\"analysis\"}", "application/json");
         await Client(backend).QueryAsync(new() {
             Query = "ordinary question",
             SessionId = "forge-session-123"

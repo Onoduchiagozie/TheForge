@@ -6,6 +6,7 @@ namespace TheForge.Features.Workspace.Models;
 public sealed class WorkspaceState
 {
     public string SessionId { get; } = $"forge-{Guid.NewGuid():N}";
+    public int ConversationTurn { get; private set; }
     public WorkspaceMode Mode { get; set; } = WorkspaceMode.Explorer;
     public NarratorSubMode SubMode { get; set; } = NarratorSubMode.Focus;
     public string QueryText { get; set; } = "";
@@ -91,6 +92,7 @@ public sealed class WorkspaceState
     {
         Query = QueryText.Trim(),
         SessionId = SessionId,
+        ConversationTurn = ConversationTurn,
         BookFilter = Mode == WorkspaceMode.Narrator ? SelectedBookFilename : null,
         SourceFilter = Mode == WorkspaceMode.Narrator && SelectedSources.Count > 0 ? SelectedSources.ToList() : null
     };
@@ -103,6 +105,12 @@ public sealed class WorkspaceState
             ? ResponseText.Split("\n\n", StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).Where(s => s.Length > 0).ToList()
             : [];
         Status = StreamState.Complete;
+        CompleteTurn();
+    }
+
+    public void CompleteTurn()
+    {
+        checked { ConversationTurn++; }
     }
 
     public void ResetResponse()

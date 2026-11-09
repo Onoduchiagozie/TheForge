@@ -60,6 +60,19 @@ public class FastApiClientTests
         Assert.That(events.Single(), Is.EqualTo(text));
     }
 
+    [Test]
+    public async Task SessionIdentifierIsForwardedInSnakeCase()
+    {
+        var backend = new Backend("{\\"response\\":\\"analysis\\"}", "application/json");
+        await Client(backend).QueryAsync(new() {
+            Query = "ordinary question",
+            SessionId = "forge-session-123"
+        });
+        using var payload = System.Text.Json.JsonDocument.Parse(backend.Body!);
+        Assert.That(payload.RootElement.GetProperty("session_id").GetString(),
+            Is.EqualTo("forge-session-123"));
+    }
+
     private static FastApiClient Client(Backend backend) => new(
         new HttpClient(backend) { BaseAddress = new("http://oracle/") }, NullLogger<FastApiClient>.Instance);
 

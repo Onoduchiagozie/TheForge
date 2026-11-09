@@ -17,10 +17,8 @@ if (builder.Environment.IsEnvironment("Testing"))
     builder.WebHost.UseStaticWebAssets();
 }
 
-// Testing-only: bind to all network interfaces (not just localhost) so the
-// ngrok tunnel can reach Kestrel. AllowedHosts "*" is set in appsettings.json.
+// The deployment must explicitly configure the bind address and host policy.
 builder.WebHost.UseUrls(builder.Configuration["Urls"] ?? "http://0.0.0.0:5157");
-
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -28,9 +26,6 @@ builder.Services.AddControllers()
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
-
-// builder.Services.AddDbContext<ForgeDbContext>(options =>
-//     options.UseSqlite(builder.Configuration.GetConnectionString("ForgeDb")));
 
 // Scene Archive: separate, read-only DbContext against battlescenes.db (an independent
 // SQLite file populated externally by the OmnissiahCore scene-weaving pipeline — this app
@@ -57,13 +52,6 @@ builder.Services.AddHttpClient<IFastApiClient, FastApiClient>(client =>
     client.Timeout = TimeSpan.FromMinutes(10);
 });
 
-// GOLD: User settings/tier caps are intentionally not registered in the pre-Gold build.
-// builder.Services.AddScoped<UserSettingsService>();
-// GOLD: Usage throttling is intentionally not registered in the pre-Gold build.
-// builder.Services.AddScoped<UsageService>();
-builder.Services.AddScoped<QueryCacheService>();
-// GOLD: Context/session memory is intentionally not registered in the pre-Gold build.
-// builder.Services.AddSingleton<SessionService>();
 builder.Services.AddMemoryCache(options => options.SizeLimit = 500);
 builder.Services.AddHttpClient("ForgeApi", client =>
 {
@@ -85,28 +73,6 @@ builder.Services.AddSwaggerGen(options =>
         Version = "v1"
     });
 
-    // GOLD: API-key auth is intentionally not advertised in the pre-Gold build.
-    // options.AddSecurityDefinition("ApiKey", new()
-    // {
-    //     In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-    //     Name = "X-Api-Key",
-    //     Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey
-    // });
-    //
-    // options.AddSecurityRequirement(new()
-    // {
-    //     {
-    //         new()
-    //         {
-    //             Reference = new()
-    //             {
-    //                 Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
-    //                 Id = "ApiKey"
-    //             }
-    //         },
-    //         []
-    //     }
-    // });
 });
 
 builder.Services.AddCors(options =>
@@ -114,12 +80,6 @@ builder.Services.AddCors(options =>
         policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
 var app = builder.Build();
-
-// using (var scope = app.Services.CreateScope())
-// {
-//     var db = scope.ServiceProvider.GetRequiredService<ForgeDbContext>();
-//     db.Database.Migrate();
-// }
 
 if (app.Environment.IsDevelopment())
 {
@@ -131,73 +91,8 @@ app.UseStaticFiles();
 app.UseAntiforgery();
 app.UseCors();
 
-// GOLD: Authentication is intentionally disabled in the pre-Gold build.
-// if (app.Environment.IsDevelopment())
-// {
-//     app.Use(async (context, next) =>
-//     {
-//         if (context.Request.Path.StartsWithSegments("/api"))
-//         {
-//             context.Items["ForgeUser"] = new User
-//             {
-//                 Id = 1,
-//                 Email = "dev@theforge.dev",
-//                 Tier = "archmagos",
-//                 IsActive = true,
-//                 CreatedAt = DateTime.UtcNow,
-//                 Settings = new UserSettings
-//                 {
-//                     PreferredMode = "remembrancer",
-//                     TopK = 10,
-//                     CandidatePool = 20,
-//                     StitchingWindow = 5,
-//                     UpdatedAt = DateTime.UtcNow
-//                 }
-//             };
-//         }
-//
-//         await next();
-//     });
-// }
-// else
-// {
-//     app.UseMiddleware<ForgeAuthMiddleware>();
-// }
-
 app.MapControllers();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

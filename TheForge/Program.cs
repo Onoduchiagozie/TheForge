@@ -52,6 +52,7 @@ builder.Services.AddHttpClient<IFastApiClient, FastApiClient>(client =>
     client.Timeout = TimeSpan.FromMinutes(10);
 });
 
+builder.Services.AddScoped<QueryCacheService>();
 builder.Services.AddMemoryCache(options => options.SizeLimit = 500);
 builder.Services.AddHttpClient("ForgeApi", client =>
 {

@@ -48,7 +48,10 @@ public sealed class WorkspaceQueryService(IForgeApiService api, QueryStreamParse
                         break;
                     case QueryStreamFrameKind.Stage: state.Stage = frame.Stage; break;
                     case QueryStreamFrameKind.Sources: state.Sources = frame.Sources ?? []; break;
-                    case QueryStreamFrameKind.Complete: state.Stage = QueryStage.Complete; break;
+                    case QueryStreamFrameKind.Complete:
+                        state.Stage = QueryStage.Complete;
+                        state.CompleteTurn();
+                        break;
                     case QueryStreamFrameKind.Error:
                         logger.LogWarning("Oracle stream failed: {Detail}", frame.Text);
                         state.ErrorMessage = "The service could not finish your request. Please try again later.";

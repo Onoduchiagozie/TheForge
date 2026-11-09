@@ -22,6 +22,26 @@ public class QueryCacheIsolationTests
     }
 
     [Test]
+    public void NewConversationRevisionCannotReuseOldGeneratedAnswer()
+    {
+        using var memory = new MemoryCache(new MemoryCacheOptions { SizeLimit = 100 });
+        var cache = new QueryCacheService(memory, NullLogger<QueryCacheService>.Instance);
+        var earlier = new QueryRequest {
+            Query = "Why did Horus turn traitor?",
+            SessionId = "forge-user-a",
+            ConversationTurn = 0
+        };
+        var later = new QueryRequest {
+            Query = "Why did Horus turn traitor?",
+            SessionId = "forge-user-a",
+            ConversationTurn = 1
+        };
+        cache.Set(earlier, new QueryResponse { Response = "Earlier" });
+        Assert.That(cache.Get(later), Is.Null);
+        Assert.That(cache.Get(earlier)?.Response, Is.EqualTo("Earlier"));
+    }
+
+    [Test]
     public void FiltersArePartOfTheCacheIdentity()
     {
         using var memory = new MemoryCache(new MemoryCacheOptions { SizeLimit = 100 });

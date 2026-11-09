@@ -6,17 +6,8 @@ using TheForge.Models;
 namespace TheForge.Services;
 
 /// <summary>
-/// Caches synchronous query responses in memory.
-/// Cache key = SHA256(query + book filter) — Gold-only mode/top_k controls are not part of pre-Gold requests.
-/// TTL = 10 minutes.
-/// Stream endpoints are intentionally excluded — you cannot cache a live SSE stream.
-///
-/// Usage in QueryController:
-///   var cached = cacheService.Get(request);
-///   if (cached is not null) return Ok(cached);
-///   var result = await fastApi.QueryAsync(...);
-///   cacheService.Set(request, result);
-///   return Ok(result);
+/// Ten-minute, per-session cache for synchronous responses.
+/// Streaming requests are not cached.
 /// </summary>
 public class QueryCacheService(IMemoryCache cache, ILogger<QueryCacheService> logger)
 {
@@ -51,7 +42,15 @@ public class QueryCacheService(IMemoryCache cache, ILogger<QueryCacheService> lo
 
     private static string BuildKey(QueryRequest req)
     {
-        var raw = $"{req.Query.Trim().ToLowerInvariant()}|{req.BookFilter?.Trim().ToLowerInvariant()}";
+        // Include every request dimension that affects retrieval and output.
+        var session = req.SessionId?.Trim() ?? string.Empty;
+        var query = req.Query.Trim().ToLowerInvariant();
+        var book = req.BookFilter?.Trim().ToLowerInvariant() ?? string.Empty;
+        var sources = string.Join("\u001f", (req.SourceFilter ?? [])
+            .Where(source => !string.IsNullOrWhiteSpace(source))
+            .Select(source => source.Trim())
+            .OrderBy(source => source, StringComparer.Ordinal));
+        var raw = string.Join("\u001e", session, query, book, sources);
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(raw));
         return $"qcache:{Convert.ToHexString(hash).ToLowerInvariant()}";
     }

@@ -23,6 +23,8 @@ public class WorkspaceQueryTests
         Assert.That(api.Request!.Query, Is.EqualTo("question"));
         Assert.That(api.Request.BookFilter, Is.EqualTo(mode == WorkspaceMode.Narrator ? "betrayer.pdf" : null));
         Assert.That(state.Status, Is.EqualTo(StreamState.Complete));
+        Assert.That(state.ConversationTurn, Is.EqualTo(1));
+        Assert.That(state.BuildRequest().ConversationTurn, Is.EqualTo(1));
         Assert.That(state.ResponseText, Is.EqualTo(mode == WorkspaceMode.Narrator && subMode == NarratorSubMode.WideNet ? "Hello world" : "First\n\nSecond"));
         Assert.That(state.Sources, Has.Count.EqualTo(1));
         Assert.That(updates, Is.GreaterThanOrEqualTo(2));
@@ -118,6 +120,7 @@ public class WorkspaceQueryTests
         var different = second.BuildRequest();
 
         Assert.That(one.SessionId, Is.Not.Null.And.Not.Empty);
+        Assert.That(one.ConversationTurn, Is.EqualTo(0));
         Assert.That(one.SessionId, Is.EqualTo(repeat.SessionId));
         Assert.That(one.SessionId, Is.Not.EqualTo(different.SessionId));
         Assert.That(one.SessionId, Is.Not.EqualTo("default"));

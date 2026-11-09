@@ -5,6 +5,7 @@ namespace TheForge.Features.Workspace.Models;
 /// <summary>State owned by one workspace page, never shared between users or page instances.</summary>
 public sealed class WorkspaceState
 {
+    public string SessionId { get; } = $"forge-{Guid.NewGuid():N}";
     public WorkspaceMode Mode { get; set; } = WorkspaceMode.Explorer;
     public NarratorSubMode SubMode { get; set; } = NarratorSubMode.Focus;
     public string QueryText { get; set; } = "";
@@ -89,6 +90,7 @@ public sealed class WorkspaceState
     public QueryRequest BuildRequest() => new()
     {
         Query = QueryText.Trim(),
+        SessionId = SessionId,
         BookFilter = Mode == WorkspaceMode.Narrator ? SelectedBookFilename : null,
         SourceFilter = Mode == WorkspaceMode.Narrator && SelectedSources.Count > 0 ? SelectedSources.ToList() : null
     };

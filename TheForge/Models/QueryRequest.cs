@@ -9,6 +9,7 @@ public class QueryRequest
     public List<string>? SourceFilter { get; set; }
 
     public string? SessionId { get; set; }
+    public int? ConversationTurn { get; set; }
 }
 
 // ── Response building-blocks ──────────────────────────────────────────────────

@@ -8,12 +8,7 @@ public class QueryRequest
     public string? BookFilter { get; set; }
     public List<string>? SourceFilter { get; set; }
 
-    // GOLD: Context/session, mode payloads, and retrieval override controls are intentionally disabled.
-    // public string? SessionId { get; set; }
-    // public string? Mode { get; set; }
-    // public int? TopK { get; set; }
-    // public int? CandidatePool { get; set; }
-    // public int? StitchingWindow { get; set; }
+    public string? SessionId { get; set; }
 }
 
 // ── Response building-blocks ──────────────────────────────────────────────────

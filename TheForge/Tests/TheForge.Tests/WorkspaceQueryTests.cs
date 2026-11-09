@@ -120,7 +120,7 @@ public class WorkspaceQueryTests
         Assert.That(one.SessionId, Is.Not.Null.And.Not.Empty);
         Assert.That(one.SessionId, Is.EqualTo(repeat.SessionId));
         Assert.That(one.SessionId, Is.Not.EqualTo(different.SessionId));
-        Assert.That(one.SessionId, Does.Not.Equal("default"));
+        Assert.That(one.SessionId, Is.Not.EqualTo("default"));
     }
 
     private sealed class FakeApi : IForgeApiService

@@ -88,46 +88,69 @@ public class FastApiClient(HttpClient httpClient, ILogger<FastApiClient> logger)
         {
             Content = JsonContent.Create(body, options: JsonOptions)
         };
-
-        using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+        using var response = await httpClient.SendAsync(
+            request, HttpCompletionOption.ResponseHeadersRead, ct);
         response.EnsureSuccessStatusCode();
 
         await using var stream = await response.Content.ReadAsStreamAsync(ct);
         using var reader = new StreamReader(stream);
 
+        // Each SSE event may have more than one data: line. Collect until
+        // the empty line delimiter rather than corrupting paragraph tokens.
+        var lines = new List<string>();
         while (!ct.IsCancellationRequested)
         {
             var line = await reader.ReadLineAsync(ct);
             if (line is null)
-            {
-                yield break;
-            }
+                break;
 
-            if (!line.StartsWith("data: ", StringComparison.Ordinal))
+            if (line.Length > 0)
             {
+                if (line.StartsWith("data:", StringComparison.Ordinal))
+                {
+                    var value = line["data:".Length..];
+                    lines.Add(value.StartsWith(' ') ? value[1..] : value);
+                }
                 continue;
             }
 
-            var payload = line["data: ".Length..];
+            if (lines.Count == 0)
+                continue;
+            var payload = string.Join("\n", lines);
+            lines.Clear();
+
+            // The upstream, not the gateway, decides whether a request
+            // finished successfully. Never invent a successful [DONE].
             if (payload == "[DONE]")
             {
+                yield return payload;
                 yield break;
             }
 
-            if (payload.StartsWith("__SOURCES__:", StringComparison.Ordinal))
+            if (payload is "__STAGE__:failed" or "__STAGE__:error")
             {
-                yield return payload;
-                continue;
+                logger.LogWarning("FastAPI reported failed query stage.");
+                yield return "[ERROR] Oracle reported retrieval or generation failure.";
+                yield break;
             }
 
             if (payload.StartsWith("[ERROR]", StringComparison.Ordinal))
             {
-                logger.LogError("FastAPI stream returned an error frame: {Payload}", payload);
+                logger.LogError("FastAPI stream returned error frame: {Payload}", payload);
                 yield return payload;
                 yield break;
             }
 
             yield return payload;
         }
+
+        // An upstream disconnect without [DONE] is an error, even when
+        // sources or some answer tokens already arrived.
+        if (!ct.IsCancellationRequested)
+        {
+            logger.LogWarning("FastAPI SSE connection ended before [DONE].");
+            yield return "[ERROR] Oracle stream ended before completion.";
+        }
     }
+
 }

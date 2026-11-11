@@ -56,7 +56,7 @@ class Runner
 
         var interrupted = await Frames(
             "data: A passage about the Night Lords.\n\n" +
-            "data: __SOURCES__:[]\n\n"
+            "data: __SOURCES__:[]\n\n");
         AssertEx.True(interrupted.Last().StartsWith("[ERROR]"),
             "Premature EOF after receiving sources reports error, not success");
         AssertEx.True(!interrupted.Contains("[DONE]"),

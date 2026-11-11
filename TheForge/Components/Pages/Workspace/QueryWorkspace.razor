@@ -215,6 +215,10 @@
                 }
                 break;
                 case StreamState.Error:
+                @if (!string.IsNullOrWhiteSpace(_responseText))
+                {
+                <pre class="response-text">@_responseText</pre>
+                }
                 <p class="response-error">@_errorMessage</p>
                 break;
                 case StreamState.Cancelled:
@@ -327,7 +331,8 @@ null => "OFFLINE",
 var other => other
 };
 
-private string HealthModelText => string.IsNullOrWhiteSpace(_health?.OllamaModel) ? "" : _health.OllamaModel;
+private string HealthModelText => !string.IsNullOrWhiteSpace(_health?.LlmModel)
+    ? _health.LlmModel : (_health?.OllamaModel ?? "");
 
 private string? ChunkCountDisplay => _healthLoaded && _health?.MetadataLoaded is > 0
 ? _health.MetadataLoaded.ToString("N0")
@@ -529,101 +534,144 @@ return;
 _responseBuffer.Append(chunk);
 }
 
+// SSE events terminate on a blank line, not on an individual data: line.
+// Returning true means the stream reached a terminal success/error frame.
+private bool ApplyNarratorFrame(string frame)
+{
+    if (frame == "[DONE]")
+    {
+        if (_stage == QueryStage.Error || string.IsNullOrWhiteSpace(_responseText))
+        {
+            _errorMessage ??= "Oracle ended without generating an answer.";
+            _streamState = StreamState.Error;
+            _stage = QueryStage.Error;
+        }
+        else
+        {
+            _streamState = StreamState.Complete;
+            _stage = QueryStage.Complete;
+        }
+        return true;
+    }
+
+    if (frame.StartsWith("[ERROR]", StringComparison.Ordinal))
+    {
+        _errorMessage = frame["[ERROR]".Length..].Trim();
+        if (string.IsNullOrWhiteSpace(_errorMessage))
+            _errorMessage = "Oracle reported an error.";
+        _streamState = StreamState.Error;
+        _stage = QueryStage.Error;
+        return true;
+    }
+
+    if (frame.StartsWith("__STAGE__:", StringComparison.Ordinal))
+    {
+        _stage = QueryStageExtensions.Parse(frame["__STAGE__:".Length..]);
+        if (_stage == QueryStage.Error)
+        {
+            _errorMessage = "Oracle reported a failed pipeline stage.";
+            _streamState = StreamState.Error;
+            return true;
+        }
+    }
+    else if (frame.StartsWith("__SOURCES__:", StringComparison.Ordinal))
+    {
+        ParseSourcesFrame(frame);
+        // Sources are metadata, not proof that generation succeeded.
+    }
+    else
+    {
+        AppendStreamChunk(frame);
+        _responseText = _responseBuffer.ToString();
+    }
+    return false;
+}
+
 private async Task HandleNarratorStream(QueryRequest request)
 {
-_cts = new CancellationTokenSource();
-_streamState = StreamState.Streaming;
+    _cts = new CancellationTokenSource();
+    var cancellation = _cts.Token;
+    _streamState = StreamState.Streaming;
+    _stage = QueryStage.Embedding;
 
-try
-{
-using var response = await ForgeApi.BeginNarrateStreamAsync(request, _cts.Token);
-if (!response.IsSuccessStatusCode)
-{
-_errorMessage = await response.Content.ReadAsStringAsync(_cts.Token);
-_streamState = StreamState.Error;
-return;
-}
+    try
+    {
+        using var response = await ForgeApi.BeginNarrateStreamAsync(request, cancellation);
+        if (!response.IsSuccessStatusCode)
+        {
+            _errorMessage = await response.Content.ReadAsStringAsync(cancellation);
+            _streamState = StreamState.Error;
+            _stage = QueryStage.Error;
+            return;
+        }
 
-await using var stream = await response.Content.ReadAsStreamAsync(_cts.Token);
-using var reader = new StreamReader(stream);
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellation);
+        using var reader = new StreamReader(stream);
+        var dataLines = new List<string>();
 
-while (!_cts.Token.IsCancellationRequested)
-{
-var line = await reader.ReadLineAsync(_cts.Token);
-if (line is null)
-{
-break;
-}
+        while (!cancellation.IsCancellationRequested && _streamState == StreamState.Streaming)
+        {
+            // A hung tunnel must not leave the interface in "Writing" forever.
+            using var idle = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
+            idle.CancelAfter(TimeSpan.FromMinutes(5));
+            var line = await reader.ReadLineAsync(idle.Token);
+            if (line is null)
+                break;
 
-if (!line.StartsWith("data:", StringComparison.Ordinal))
-{
-continue;
-}
+            if (line.Length > 0)
+            {
+                if (line.StartsWith("data:", StringComparison.Ordinal))
+                {
+                    var value = line["data:".Length..];
+                    dataLines.Add(value.StartsWith(' ') ? value[1..] : value);
+                }
+                continue;
+            }
 
-var data = line["data:".Length..];
-if (data.StartsWith(' '))
-{
-data = data[1..];
-}
+            if (dataLines.Count == 0)
+                continue;
+            var payload = string.Join("\n", dataLines);
+            dataLines.Clear();
+            var finished = ApplyNarratorFrame(payload);
+            await InvokeAsync(StateHasChanged);
+            if (finished)
+                break;
+        }
 
-var trimmedData = data.Trim();
-
-if (trimmedData == "[DONE]")
-{
-_streamState = StreamState.Complete;
-_stage = QueryStage.Complete;
-break;
-}
-
-if (trimmedData.StartsWith("[ERROR]", StringComparison.Ordinal))
-{
-_errorMessage = trimmedData["[ERROR]".Length..].Trim();
-_streamState = StreamState.Error;
-_stage = QueryStage.Error;
-break;
-}
-
-if (trimmedData.StartsWith("__STAGE__:", StringComparison.Ordinal))
-{
-_stage = QueryStageExtensions.Parse(trimmedData["__STAGE__:".Length..]);
-}
-else if (trimmedData.StartsWith("__SOURCES__:", StringComparison.Ordinal))
-{
-ParseSourcesFrame(trimmedData);
-}
-else
-{
-AppendStreamChunk(data);
-_responseText = _responseBuffer.ToString();
-}
-await InvokeAsync(StateHasChanged);
-}
-
-if (_cts.Token.IsCancellationRequested && _streamState == StreamState.Streaming)
-{
-_streamState = StreamState.Cancelled;
-}
-else if (_streamState == StreamState.Streaming)
-{
-_streamState = StreamState.Complete;
-}
-}
-catch (OperationCanceledException)
-{
-_streamState = StreamState.Cancelled;
-}
-catch (Exception ex)
-{
-Logger.LogError(ex, "Narrator stream failed.");
-_errorMessage = "The archive stream failed before completion.";
-_streamState = StreamState.Error;
-}
-finally
-{
-_cts?.Dispose();
-_cts = null;
-await InvokeAsync(StateHasChanged);
-}
+        if (cancellation.IsCancellationRequested)
+        {
+            _streamState = StreamState.Cancelled;
+        }
+        else if (_streamState == StreamState.Streaming)
+        {
+            _errorMessage = "Oracle disconnected before confirming completion.";
+            _streamState = StreamState.Error;
+            _stage = QueryStage.Error;
+        }
+    }
+    catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+    {
+        _streamState = StreamState.Cancelled;
+    }
+    catch (OperationCanceledException)
+    {
+        _errorMessage = "Oracle stopped sending data for five minutes.";
+        _streamState = StreamState.Error;
+        _stage = QueryStage.Error;
+    }
+    catch (Exception ex)
+    {
+        Logger.LogError(ex, "Narrator stream failed.");
+        _errorMessage = "The Oracle stream failed. Partial text is preserved.";
+        _streamState = StreamState.Error;
+        _stage = QueryStage.Error;
+    }
+    finally
+    {
+        _cts?.Dispose();
+        _cts = null;
+        await InvokeAsync(StateHasChanged);
+    }
 }
 
 private async Task HandleFocusQuery(QueryRequest request)

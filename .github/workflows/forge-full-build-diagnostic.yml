@@ -1,0 +1,19 @@
+name: TheForge full application build diagnostic
+on:
+  push:
+    branches: [fix/stream-protocol-nonhorus-20261111]
+    paths:
+      - 'TheForge/**'
+      - .github/workflows/forge-full-build-diagnostic.yml
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Compile full TheForge ASP.NET+Blazor application
+        run: dotnet build TheForge/TheForge.csproj --configuration Release --nologo

@@ -1,0 +1,49 @@
+name: Live Blazor browser stream acceptance (non-Horus)
+on:
+  push:
+    branches: [fix/stream-protocol-nonhorus-20261111]
+    paths:
+      - 'Tests/BrowserSmoke/**'
+      - '.github/workflows/live-forge-browser-smoke.yml'
+  workflow_dispatch:
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Compile full Forge web app
+        run: dotnet build TheForge/TheForge.csproj --configuration Release --nologo
+      - name: Install Playwright and Chromium
+        run: |
+          npm install --prefix Tests/BrowserSmoke --no-audit --no-fund
+          cd Tests/BrowserSmoke
+          npx playwright install --with-deps chromium
+      - name: Launch Forge with real Oracle endpoint
+        shell: bash
+        run: |
+          FastApi__BaseUrl=https://emerald-nativity-guacamole.ngrok-free.dev/ dotnet run --no-build --configuration Release --project TheForge/TheForge.csproj > /tmp/forge-web.log 2>&1 &
+          echo $! > /tmp/forge-web.pid
+          for i in $(seq 1 60); do
+            if curl -fsS --max-time 8 http://127.0.0.1:5157/ > /dev/null; then
+              echo "Forge web app online"
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/forge-web.log
+          exit 1
+      - name: Real non-Horus narration through browser / Blazor / Oracle
+        run: node Tests/BrowserSmoke/streaming-smoke.mjs
+      - name: Print last web server logs
+        if: always()
+        run: test ! -f /tmp/forge-web.log || tail -n 80 /tmp/forge-web.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: forge-nonhorus-browser-screenshot
+          path: Tests/BrowserSmoke/artifacts/forge-stream-final.png
+          if-no-files-found: warn

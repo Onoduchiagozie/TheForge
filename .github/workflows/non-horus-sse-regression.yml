@@ -1,0 +1,35 @@
+name: Non-Horus Forge SSE regression
+on:
+  push:
+    branches: [fix/stream-protocol-nonhorus-20261111]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  sse-protocol:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Run real C# gateway SSE tests without contacting Oracle
+        run: dotnet run --project Tests/StreamProtocolHarness/StreamProtocolHarness.csproj --configuration Release
+      - name: Confirm frontend interprets terminal errors correctly
+        shell: python
+        run: |
+          from pathlib import Path
+          source = Path("TheForge/Components/Pages/Workspace/QueryWorkspace.razor").read_text()
+          gateway = Path("TheForge/Controllers/QueryController.cs").read_text()
+          checks = {
+              "frontend preserves partial text": 'StreamState.Error:' in source and '@_responseText</pre>' in source,
+              "frontend checks missing DONE": 'disconnected before confirming completion' in source,
+              "frontend rejects empty answer": 'Oracle ended without generating an answer' in source,
+              "frontend stage failure": 'Oracle reported a failed pipeline stage' in source,
+              "controller does not fabricate DONE": 'Response.WriteAsync("data: [DONE]' not in gateway,
+              "controller forwards upstream DONE": 'token == "[DONE]"' in gateway,
+          }
+          for label, passed in checks.items():
+              print(("PASS" if passed else "FAIL") + " " + label)
+          assert all(checks.values())

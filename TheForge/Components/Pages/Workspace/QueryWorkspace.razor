@@ -215,6 +215,10 @@
                 }
                 break;
                 case StreamState.Error:
+                @if (!string.IsNullOrWhiteSpace(_responseText))
+                {
+                <pre class="response-text">@_responseText</pre>
+                }
                 <p class="response-error">@_errorMessage</p>
                 break;
                 case StreamState.Cancelled:
@@ -531,99 +535,118 @@ _responseBuffer.Append(chunk);
 
 private async Task HandleNarratorStream(QueryRequest request)
 {
-_cts = new CancellationTokenSource();
-_streamState = StreamState.Streaming;
+    _cts = new CancellationTokenSource();
+    _streamState = StreamState.Streaming;
+    _stage = QueryStage.Embedding;
+    await InvokeAsync(StateHasChanged);
 
-try
-{
-using var response = await ForgeApi.BeginNarrateStreamAsync(request, _cts.Token);
-if (!response.IsSuccessStatusCode)
-{
-_errorMessage = await response.Content.ReadAsStringAsync(_cts.Token);
-_streamState = StreamState.Error;
-return;
-}
+    try
+    {
+        using var response = await ForgeApi.BeginNarrateStreamAsync(request, _cts.Token);
+        if (!response.IsSuccessStatusCode)
+        {
+            _errorMessage = "The narrator API rejected the request: "
+                + await response.Content.ReadAsStringAsync(_cts.Token);
+            _streamState = StreamState.Error;
+            _stage = QueryStage.Error;
+            return;
+        }
 
-await using var stream = await response.Content.ReadAsStreamAsync(_cts.Token);
-using var reader = new StreamReader(stream);
+        await using var stream = await response.Content.ReadAsStreamAsync(_cts.Token);
+        using var reader = new StreamReader(stream);
+        using var streamWatchdog = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
+        // Reset on each complete SSE frame. A silent network stream must
+        // not leave the UI in 'Writing' forever.
+        streamWatchdog.CancelAfter(TimeSpan.FromMinutes(5));
 
-while (!_cts.Token.IsCancellationRequested)
-{
-var line = await reader.ReadLineAsync(_cts.Token);
-if (line is null)
-{
-break;
-}
+        await foreach (var data in TheForge.Services.SseFrameParser.ReadAsync(
+            reader, streamWatchdog.Token))
+        {
+            streamWatchdog.CancelAfter(TimeSpan.FromMinutes(5));
 
-if (!line.StartsWith("data:", StringComparison.Ordinal))
-{
-continue;
-}
+            if (data == "[DONE]")
+            {
+                if (_responseBuffer.Length == 0 || string.IsNullOrWhiteSpace(_responseText))
+                {
+                    _errorMessage = "Sources were retrieved, but no answer was generated.";
+                    _streamState = StreamState.Error;
+                    _stage = QueryStage.Error;
+                }
+                else
+                {
+                    _streamState = StreamState.Complete;
+                    _stage = QueryStage.Complete;
+                }
 
-var data = line["data:".Length..];
-if (data.StartsWith(' '))
-{
-data = data[1..];
-}
+                await InvokeAsync(StateHasChanged);
+                break;
+            }
 
-var trimmedData = data.Trim();
+            if (data.StartsWith("[ERROR]", StringComparison.Ordinal))
+            {
+                _errorMessage = data["[ERROR]".Length..].Trim();
+                _streamState = StreamState.Error;
+                _stage = QueryStage.Error;
+                await InvokeAsync(StateHasChanged);
+                break;
+            }
 
-if (trimmedData == "[DONE]")
-{
-_streamState = StreamState.Complete;
-_stage = QueryStage.Complete;
-break;
-}
+            if (data.StartsWith("__STAGE__:", StringComparison.Ordinal))
+            {
+                var stage = QueryStageExtensions.Parse(data["__STAGE__:".Length..]);
+                if (stage == QueryStage.Error)
+                {
+                    _streamState = StreamState.Error;
+                    _stage = QueryStage.Error;
+                    _errorMessage = "The backend reported a generation failure.";
+                    await InvokeAsync(StateHasChanged);
+                    break;
+                }
+                _stage = stage;
+            }
+            else if (data.StartsWith("__SOURCES__:", StringComparison.Ordinal))
+            {
+                ParseSourcesFrame(data);
+            }
+            else
+            {
+                AppendStreamChunk(data);
+                _responseText = _responseBuffer.ToString();
+            }
 
-if (trimmedData.StartsWith("[ERROR]", StringComparison.Ordinal))
-{
-_errorMessage = trimmedData["[ERROR]".Length..].Trim();
-_streamState = StreamState.Error;
-_stage = QueryStage.Error;
-break;
-}
+            await InvokeAsync(StateHasChanged);
+        }
 
-if (trimmedData.StartsWith("__STAGE__:", StringComparison.Ordinal))
-{
-_stage = QueryStageExtensions.Parse(trimmedData["__STAGE__:".Length..]);
-}
-else if (trimmedData.StartsWith("__SOURCES__:", StringComparison.Ordinal))
-{
-ParseSourcesFrame(trimmedData);
-}
-else
-{
-AppendStreamChunk(data);
-_responseText = _responseBuffer.ToString();
-}
-await InvokeAsync(StateHasChanged);
-}
-
-if (_cts.Token.IsCancellationRequested && _streamState == StreamState.Streaming)
-{
-_streamState = StreamState.Cancelled;
-}
-else if (_streamState == StreamState.Streaming)
-{
-_streamState = StreamState.Complete;
-}
-}
-catch (OperationCanceledException)
-{
-_streamState = StreamState.Cancelled;
-}
-catch (Exception ex)
-{
-Logger.LogError(ex, "Narrator stream failed.");
-_errorMessage = "The archive stream failed before completion.";
-_streamState = StreamState.Error;
-}
-finally
-{
-_cts?.Dispose();
-_cts = null;
-await InvokeAsync(StateHasChanged);
-}
+        if (_streamState == StreamState.Streaming)
+        {
+            _errorMessage = "The stream closed without a completion event.";
+            _streamState = StreamState.Error;
+            _stage = QueryStage.Error;
+        }
+    }
+    catch (OperationCanceledException) when (_cts?.IsCancellationRequested == true)
+    {
+        _streamState = StreamState.Cancelled;
+    }
+    catch (OperationCanceledException)
+    {
+        _errorMessage = "No stream data received for five minutes. The server may be stalled.";
+        _streamState = StreamState.Error;
+        _stage = QueryStage.Error;
+    }
+    catch (Exception ex)
+    {
+        Logger.LogError(ex, "Narrator stream failed.");
+        _errorMessage = "The archive stream failed before completion.";
+        _streamState = StreamState.Error;
+        _stage = QueryStage.Error;
+    }
+    finally
+    {
+        _cts?.Dispose();
+        _cts = null;
+        await InvokeAsync(StateHasChanged);
+    }
 }
 
 private async Task HandleFocusQuery(QueryRequest request)

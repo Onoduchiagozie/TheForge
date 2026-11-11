@@ -43,7 +43,7 @@ class Runner
             "data: __STAGE__:retrieving\n\n" +
             "data: __STAGE__:generating\n\n" +
             "data: Magnus watched the sky burn.\n\n" +
-            "data: __SOURCES__:[{\\"source\\":\\"A Thousand Sons.epub\\"}]\n\n" +
+            "data: __SOURCES__:[]\n\n" +
             "data: __STAGE__:complete\n\n" +
             "data: [DONE]\n\n");
         AssertEx.True(completed.Contains("Magnus watched the sky burn."),
@@ -56,7 +56,7 @@ class Runner
 
         var interrupted = await Frames(
             "data: A passage about the Night Lords.\n\n" +
-            "data: __SOURCES__:[{\\"source\\":\\"Soul Hunter.pdf\\"}]\n\n");
+            "data: __SOURCES__:[]\n\n"
         AssertEx.True(interrupted.Last().StartsWith("[ERROR]"),
             "Premature EOF after receiving sources reports error, not success");
         AssertEx.True(!interrupted.Contains("[DONE]"),

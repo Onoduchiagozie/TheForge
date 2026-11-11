@@ -20,6 +20,7 @@ public static class QueryStageExtensions
         "reranking" => QueryStage.Reranking,
         "generating" => QueryStage.Generating,
         "complete" => QueryStage.Complete,
+        "failed" or "error" => QueryStage.Error,
         _ => QueryStage.Error
     };
 

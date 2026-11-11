@@ -81,7 +81,8 @@ public class QueryController(
         }
     }
 
-    // Narrate — streamed via SSE
+    // Narrate — transparent SSE proxy. Do not invent a [DONE] frame:
+    // the upstream must explicitly confirm completion.
     [HttpPost("narrate")]
     public async Task NarrateStream([FromBody] QueryRequest request, CancellationToken ct)
     {
@@ -99,12 +100,19 @@ public class QueryController(
         {
             await foreach (var token in fastApi.QueryNarrateStreamAsync(request, ct))
             {
-                await Response.WriteAsync($"data: {token}\n\n", ct);
+                // SSE data lines must ALL have a data: prefix. Otherwise
+                // paragraph breaks from the model disappear downstream.
+                foreach (var line in token.Split('\n'))
+                {
+                    await Response.WriteAsync($"data: {line.TrimEnd('\r')}\n", ct);
+                }
+                await Response.WriteAsync("\n", ct);
                 await Response.Body.FlushAsync(ct);
-            }
 
-            await Response.WriteAsync("data: [DONE]\n\n", ct);
-            await Response.Body.FlushAsync(ct);
+                if (token == "[DONE]" ||
+                    token.StartsWith("[ERROR]", StringComparison.Ordinal))
+                    break;
+            }
         }
         catch (OperationCanceledException)
         {
@@ -112,9 +120,21 @@ public class QueryController(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error in POST /api/query/narrate/stream");
-            await Response.WriteAsync($"data: [ERROR] {ex.Message}\n\n", ct);
-            await Response.Body.FlushAsync(ct);
+            logger.LogError(ex, "Error in POST /api/query/narrate");
+            if (!ct.IsCancellationRequested)
+            {
+                try
+                {
+                    await Response.WriteAsync(
+                        "data: [ERROR] The gateway lost its Oracle connection.\n\n", ct);
+                    await Response.Body.FlushAsync(ct);
+                }
+                catch (Exception sendEx)
+                {
+                    logger.LogWarning(sendEx, "Cannot send SSE error after disconnect.");
+                }
+            }
         }
     }
+
 }

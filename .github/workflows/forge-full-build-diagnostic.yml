@@ -3,6 +3,7 @@ on:
   push:
     branches: [fix/stream-protocol-nonhorus-20261111]
     paths:
+      - 'TheForge/**'
       - .github/workflows/forge-full-build-diagnostic.yml
   workflow_dispatch:
 jobs:

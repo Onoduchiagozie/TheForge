@@ -1,0 +1,20 @@
+name: The Forge SSE contract tests
+on:
+  push:
+    branches:
+      - fix/forge-sse-terminal-20261111
+  pull_request:
+    branches:
+      - main
+permissions:
+  contents: read
+jobs:
+  gateway-stream-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Compile actual gateway code and run seven streaming regressions
+        run: dotnet run --project TheForge.StreamContractTests/TheForge.StreamContractTests.csproj --configuration Release

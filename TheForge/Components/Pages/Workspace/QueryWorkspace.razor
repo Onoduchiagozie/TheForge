@@ -331,7 +331,8 @@ null => "OFFLINE",
 var other => other
 };
 
-private string HealthModelText => string.IsNullOrWhiteSpace(_health?.OllamaModel) ? "" : _health.OllamaModel;
+private string HealthModelText => !string.IsNullOrWhiteSpace(_health?.LlmModel)
+    ? _health.LlmModel : (_health?.OllamaModel ?? "");
 
 private string? ChunkCountDisplay => _healthLoaded && _health?.MetadataLoaded is > 0
 ? _health.MetadataLoaded.ToString("N0")

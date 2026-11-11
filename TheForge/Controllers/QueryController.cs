@@ -81,7 +81,8 @@ public class QueryController(
         }
     }
 
-    // Narrate — streamed via SSE
+    // Narrate — streamed via SSE.
+    // Success is only emitted after a real upstream [DONE] AND answer text.
     [HttpPost("narrate")]
     public async Task NarrateStream([FromBody] QueryRequest request, CancellationToken ct)
     {
@@ -95,26 +96,73 @@ public class QueryController(
         Response.Headers.CacheControl = "no-cache";
         Response.Headers["X-Accel-Buffering"] = "no";
 
+        var receivedAnswer = false;
         try
         {
-            await foreach (var token in fastApi.QueryNarrateStreamAsync(request, ct))
+            await foreach (var frame in fastApi.QueryNarrateStreamAsync(request, ct))
             {
-                await Response.WriteAsync($"data: {token}\n\n", ct);
-                await Response.Body.FlushAsync(ct);
+                if (frame == "[DONE]")
+                {
+                    await WriteFrameAsync(receivedAnswer
+                        ? "[DONE]"
+                        : "[ERROR] Retrieval finished but the language model returned no answer.", ct);
+                    return;
+                }
+
+                if (frame.StartsWith("[ERROR]", StringComparison.Ordinal))
+                {
+                    await WriteFrameAsync(frame, ct);
+                    return;
+                }
+
+                if (frame.StartsWith("__STAGE__:failed", StringComparison.Ordinal) ||
+                    frame.StartsWith("__STAGE__:error", StringComparison.Ordinal))
+                {
+                    await WriteFrameAsync("[ERROR] The upstream generation failed.", ct);
+                    return;
+                }
+
+                if (!frame.StartsWith("__STAGE__:", StringComparison.Ordinal) &&
+                    !frame.StartsWith("__SOURCES__:", StringComparison.Ordinal) &&
+                    !string.IsNullOrWhiteSpace(frame))
+                {
+                    receivedAnswer = true;
+                }
+
+                await WriteFrameAsync(frame, ct);
             }
 
-            await Response.WriteAsync("data: [DONE]\n\n", ct);
-            await Response.Body.FlushAsync(ct);
+            // An EOF without DONE is a protocol failure, even if some text
+            // and sources were already delivered.
+            await WriteFrameAsync("[ERROR] The response stream closed before completion.", ct);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            logger.LogInformation("Narrate stream cancelled.");
+            logger.LogInformation("Narrator stream cancelled by client.");
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error in POST /api/query/narrate/stream");
-            await Response.WriteAsync($"data: [ERROR] {ex.Message}\n\n", ct);
-            await Response.Body.FlushAsync(ct);
+            logger.LogError(ex, "Narrator SSE gateway failed.");
+            if (!ct.IsCancellationRequested)
+            {
+                try
+                {
+                    await WriteFrameAsync(
+                        "[ERROR] The upstream response failed or disconnected.",
+                        ct);
+                }
+                catch (Exception writeError) when (
+                    writeError is IOException or OperationCanceledException)
+                {
+                    logger.LogWarning(writeError, "Client disconnected during error frame.");
+                }
+            }
         }
+    }
+
+    private async Task WriteFrameAsync(string payload, CancellationToken ct)
+    {
+        await Response.WriteAsync(SseFrameParser.EncodeData(payload), ct);
+        await Response.Body.FlushAsync(ct);
     }
 }

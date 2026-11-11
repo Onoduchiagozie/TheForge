@@ -95,36 +95,14 @@ public class FastApiClient(HttpClient httpClient, ILogger<FastApiClient> logger)
         await using var stream = await response.Content.ReadAsStreamAsync(ct);
         using var reader = new StreamReader(stream);
 
-        while (!ct.IsCancellationRequested)
+        // The parser emits complete SSE events and rejects premature EOF.
+        // It preserves [DONE], [ERROR], source and stage frames rather than
+        // silently converting a broken connection into apparent success.
+        await foreach (var payload in SseFrameParser.ReadAsync(reader, ct))
         {
-            var line = await reader.ReadLineAsync(ct);
-            if (line is null)
-            {
-                yield break;
-            }
-
-            if (!line.StartsWith("data: ", StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            var payload = line["data: ".Length..];
-            if (payload == "[DONE]")
-            {
-                yield break;
-            }
-
-            if (payload.StartsWith("__SOURCES__:", StringComparison.Ordinal))
-            {
-                yield return payload;
-                continue;
-            }
-
             if (payload.StartsWith("[ERROR]", StringComparison.Ordinal))
             {
                 logger.LogError("FastAPI stream returned an error frame: {Payload}", payload);
-                yield return payload;
-                yield break;
             }
 
             yield return payload;

@@ -8,6 +8,7 @@
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <Using Include="Microsoft.Extensions.Logging" />
+    <Using Include="Microsoft.AspNetCore.Http" />
     <Compile Include="../TheForge/Models/QueryRequest.cs" Link="Source/QueryRequest.cs" />
     <Compile Include="../TheForge/Services/SseFrameParser.cs" Link="Source/SseFrameParser.cs" />
     <Compile Include="../TheForge/Services/FastApiClient.cs" Link="Source/FastApiClient.cs" />
